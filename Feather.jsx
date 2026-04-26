@@ -74,7 +74,7 @@ const PALETTE = {
     freezing:     "#D6E8F5",
     cold:         "#E8EFF5",
     mild:         "#F5F5F2",
-    pleasant:     "#FAFAF8",
+    pleasant:     "#E0EDFD",
     hot:          "#FAF3E0",
     scorching:    "#FAE8C8",
   },
@@ -1054,7 +1054,7 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
   return (
     <div style={{
       position: "fixed", inset: 0,
-      backgroundColor: "#f0f0f5",
+      backgroundColor: "#EAEEF3",
       display: "flex", justifyContent: "center",
       fontFamily: SFPRO_STACK,
       userSelect: "none", WebkitUserSelect: "none",
@@ -1075,9 +1075,7 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
             const hi = city.weather?.daily?.temperature_2m_max?.[0];
             const lo = city.weather?.daily?.temperature_2m_min?.[0];
             const cityIsDay = city.weather?.current?.is_day === 1;
-            // Night cards use higher alpha (0.82) so the dark color reads close to the solid
-            // hero background. Day cards stay at 0.52 for a lighter glass look.
-            const glassColor = bgToGlassRgba(bgFor(wCode, t, cityIsDay), cityIsDay ? 0.52 : 0.82);
+            const cardBg = bgFor(wCode, t, cityIsDay);
             const cardTheme = themeFor(cityIsDay);
             const localTime = cityLocalTime(city.timezone);
             const tx = getTranslateX(i);
@@ -1116,11 +1114,11 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
                   }}
                   style={{
                     position: "relative", zIndex: 1,
-                    background: glassColor,
-                    backdropFilter: "blur(22px) saturate(180%)",
-                    WebkitBackdropFilter: "blur(22px) saturate(180%)",
-                    border: `1px solid ${cardTheme.glassBorder}`,
-                    boxShadow: "0 2px 14px rgba(0,0,0,0.06)",
+                    background: cardBg,
+                    border: `1px solid ${cardTheme.cardBorder}`,
+                    boxShadow: cityIsDay
+                      ? "0 2px 14px rgba(0,0,0,0.08)"
+                      : "0 2px 14px rgba(0,0,0,0.28)",
                     borderRadius: "18px",
                     padding: "18px 20px 16px",
                     cursor: "pointer",
@@ -1156,7 +1154,7 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
         {/* Search bar + suggestions */}
         {/* zIndex: 20 ensures the dropdown floats above city cards (backdrop-filter on each card
             creates a new stacking context that would otherwise paint over the dropdown) */}
-        <div ref={searchAreaRef} style={{ padding: "10px 16px", paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 14px)", background: "#f0f0f5", position: "relative", zIndex: 20 }}>
+        <div ref={searchAreaRef} style={{ padding: "10px 16px", paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 14px)", background: "#EAEEF3", position: "relative", zIndex: 20 }}>
 
           {/* Suggestions dropdown */}
           {(suggestions.length > 0 || suggestionsLoading) && (
