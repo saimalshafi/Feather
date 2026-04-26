@@ -932,7 +932,7 @@ export default function Feather() {
         {/* ---- Floating bottom page indicator ---- */}
         <div style={{
           position: "absolute",
-          bottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
+          bottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)",
           left: "50%", transform: "translateX(-50%)",
           zIndex: 10, pointerEvents: "none",
           padding: "8px 14px", borderRadius: "999px",
