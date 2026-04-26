@@ -5,8 +5,7 @@
 <!-- Replace with an actual screenshot once deployed -->
 ![F*eather screenshot](screenshot-placeholder.png)
 
-**Live demo:** https://USERNAME.github.io/Feather/
-*(replace USERNAME with your GitHub handle after deploying)*
+**Live demo:** https://saimalshafi.github.io/Feather/
 
 ---
 
@@ -23,7 +22,7 @@ Menu (⋮) → Install app
 ## Local development
 
 ```bash
-git clone https://github.com/USERNAME/Feather.git
+git clone https://github.com/saimalshafi/Feather.git
 cd Feather
 npm i
 npm run dev          # http://localhost:5173
