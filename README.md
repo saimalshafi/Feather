@@ -1,6 +1,6 @@
 # F*eather
 
-> For when you just need the F*cking Weather
+> For when you just need the f*cking weather
 
 <!-- Replace with an actual screenshot once deployed -->
 ![F*eather screenshot](screenshot-placeholder.png)
