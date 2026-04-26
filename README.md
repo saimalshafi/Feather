@@ -2,8 +2,7 @@
 
 > For the days you just need the f*cking weather
 
-<!-- Replace with a real screenshot once deployed -->
-![F*eather screenshot](screenshot-placeholder.png)
+![F*eather screenshot](screenshot.png)
 
 A brutally honest weather Progressive Web App. No ads, no bloat — just the conditions, a sarcastic AI one-liner, and a background color that matches the vibe.
 
