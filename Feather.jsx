@@ -59,30 +59,30 @@ function conditionName(code) {
 
 const PALETTE = {
   day: {
-    thunderstorm: "#2E2E42",
+    thunderstorm: "#575785",
     snow:         "#E8F2FA",
     rain:         "#B8C8D8",
     drizzle:      "#C2D0DC",
     fog:          "#C8C8C0",
     freezing:     "#D6E8F5",
     cold:         "#E8EFF5",
-    mild:         "#F5F5F2",
+    mild:         "#f2efe8",
     pleasant:     "#E0EDFD",
-    hot:          "#FAF3E0",
-    scorching:    "#FAE8C8",
+    hot:          "#eac99f",
+    scorching:    "#f5ae6b",
   },
   night: {
     thunderstorm: "#1A1A28",
     snow:         "#2C3E55",
     rain:         "#1A2535",
     drizzle:      "#162028",
-    fog:          "#222220",
+    fog:          "#222120",
     freezing:     "#182030",
     cold:         "#1A2035",
     mild:         "#1E2035",
     pleasant:     "#1A1E30",
-    hot:          "#28200E",
-    scorching:    "#301808",
+    hot:          "#2c1607",
+    scorching:    "#2d0e06",
   },
 };
 
