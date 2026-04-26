@@ -932,7 +932,7 @@ export default function Feather() {
         {/* ---- Floating bottom page indicator ---- */}
         <div style={{
           position: "absolute",
-          bottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)",
+          bottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)",
           left: "50%", transform: "translateX(-50%)",
           zIndex: 10, pointerEvents: "none",
           padding: "8px 14px", borderRadius: "999px",
@@ -1184,7 +1184,7 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
         {/* Search bar + suggestions */}
         {/* zIndex: 20 ensures the dropdown floats above city cards (backdrop-filter on each card
             creates a new stacking context that would otherwise paint over the dropdown) */}
-        <div ref={searchAreaRef} style={{ padding: "10px 16px", paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)", background: "#ffffff", position: "relative", zIndex: 20 }}>
+        <div ref={searchAreaRef} style={{ padding: "10px 16px", paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)", background: "#ffffff", position: "relative", zIndex: 20 }}>
 
           {/* Suggestions dropdown */}
           {(suggestions.length > 0 || suggestionsLoading) && (
