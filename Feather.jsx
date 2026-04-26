@@ -631,12 +631,12 @@ export default function Feather() {
   // This colours the browser chrome on Android and acts as the PWA splash tint.
   // The splash override (white) is handled separately below.
   useEffect(() => {
-    const color = phase === "loading" ? "#ffffff" : bg;
+    const color = phase === "loading" || showCities ? "#ffffff" : bg;
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", color);
     // Fill any gap between the app div and screen edge (home indicator area)
     document.body.style.backgroundColor = color;
-  }, [bg, phase]);
+  }, [bg, phase, showCities]);
 
   /* -------------------- RENDER -------------------- */
 
@@ -932,7 +932,7 @@ export default function Feather() {
         {/* ---- Floating bottom page indicator ---- */}
         <div style={{
           position: "absolute",
-          bottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)",
+          bottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
           left: "50%", transform: "translateX(-50%)",
           zIndex: 10, pointerEvents: "none",
           padding: "8px 14px", borderRadius: "999px",
@@ -1084,7 +1084,7 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
   return (
     <div style={{
       position: "fixed", inset: 0,
-      backgroundColor: "#EAEEF3",
+      backgroundColor: "#ffffff",
       display: "flex", justifyContent: "center",
       fontFamily: SFPRO_STACK,
       userSelect: "none", WebkitUserSelect: "none",
@@ -1184,7 +1184,7 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
         {/* Search bar + suggestions */}
         {/* zIndex: 20 ensures the dropdown floats above city cards (backdrop-filter on each card
             creates a new stacking context that would otherwise paint over the dropdown) */}
-        <div ref={searchAreaRef} style={{ padding: "10px 16px", paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 14px)", background: "#EAEEF3", position: "relative", zIndex: 20 }}>
+        <div ref={searchAreaRef} style={{ padding: "10px 16px", paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)", background: "#ffffff", position: "relative", zIndex: 20 }}>
 
           {/* Suggestions dropdown */}
           {(suggestions.length > 0 || suggestionsLoading) && (
