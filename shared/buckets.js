@@ -60,8 +60,17 @@ export function pickBucket(code, temp) {
   return "pleasant";
 }
 
-// ── Time-of-day context (dawn/morning/day/evening/dusk/night) ───────────────
+// ── Time-of-day context (dawn/morning/day/evening/dusk/night/late_night) ────
 // Used by AI tone shaping. Fallback messages collapse this to day/night.
+//
+// Slots:
+//   dawn       isDay  05–07   sunrise energy
+//   morning    isDay  08–10   get-ready energy
+//   day        isDay  11–16   activity-oriented
+//   evening    isDay  17–19   social/dinner — still lively, sun still up
+//   dusk      !isDay  17–21   sun just set, moody transition, indoor pivot
+//   night     !isDay  22–23   cozy indoor, wrapping up — NO sleep talk
+//   late_night !isDay  00–04   explicitly late — sleep/rest allowed here ONLY
 export function timeContext(isDay, localHour) {
   if (isDay) {
     if (localHour >= 5  && localHour <= 7)  return "dawn";
@@ -71,12 +80,13 @@ export function timeContext(isDay, localHour) {
   }
   // sun is down
   if (localHour >= 17 && localHour <= 21) return "dusk";
-  return "night";
+  if (localHour >= 22)                    return "night";
+  return "late_night"; // 00–04
 }
 
-// Maps the 6 fine time contexts down to the 2 keys present in the JSON file.
+// Maps the 7 fine time contexts down to the 2 keys present in the JSON file.
 export function timeContextToFallbackKey(tc) {
-  return (tc === "night" || tc === "evening" || tc === "dusk") ? "night" : "day";
+  return (tc === "late_night" || tc === "night" || tc === "evening" || tc === "dusk") ? "night" : "day";
 }
 
 // ── Parse local hour from Open-Meteo's city-local ISO string ────────────────
