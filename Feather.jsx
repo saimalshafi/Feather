@@ -631,8 +631,11 @@ export default function Feather() {
   // This colours the browser chrome on Android and acts as the PWA splash tint.
   // The splash override (white) is handled separately below.
   useEffect(() => {
+    const color = phase === "loading" ? "#ffffff" : bg;
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", phase === "loading" ? "#ffffff" : bg);
+    if (meta) meta.setAttribute("content", color);
+    // Fill any gap between the app div and screen edge (home indicator area)
+    document.body.style.backgroundColor = color;
   }, [bg, phase]);
 
   /* -------------------- RENDER -------------------- */
