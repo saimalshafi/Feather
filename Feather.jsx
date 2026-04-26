@@ -813,7 +813,13 @@ export default function Feather() {
           }}>
             <div style={sectionHeaderStyle(theme)}>Hourly Forecast</div>
 
-            <div className="feather-noscroll" style={{ display: "flex", gap: "10px", overflowX: "auto", padding: "4px 4px 14px", scrollSnapType: "x proximity" }}>
+            <div
+              className="feather-noscroll"
+              style={{ display: "flex", gap: "10px", overflowX: "auto", padding: "4px 4px 14px", scrollSnapType: "x proximity", touchAction: "pan-x" }}
+              onTouchStart={e => e.stopPropagation()}
+              onTouchMove={e => e.stopPropagation()}
+              onTouchEnd={e => e.stopPropagation()}
+            >
               {weather && weather.hourly?.time?.slice(nowHourIdx, nowHourIdx + 24).map((t, i) => {
                 const idx = nowHourIdx + i;
                 // Parse hour directly from the Open-Meteo ISO string ("2024-04-26T14:00")
