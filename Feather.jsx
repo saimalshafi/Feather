@@ -155,17 +155,16 @@ function feelsLikeDescriptor(temp, feels, wind) {
 }
 
 // ----- Auto-size hero font based on text length -----
-// Uses min(width-based clamp, dvh-based cap) so text always fits within
-// the available hero height (≈ 100dvh minus top/bottom padding, temp display, safe areas).
+// Available hero height ≈ 55dvh (100dvh minus temp, top/bottom padding, safe areas, dots).
+// Target: text block fills ~70% of that space.
 function heroFontSize(text) {
   const len = (text || "").length;
-  // dvh cap: chosen so estimated line count × font × 0.98 lineHeight ≤ available height
-  if (len < 30) return "min(clamp(60px, 18vw, 110px), 13dvh)"; // ~3–4 lines
-  if (len < 50) return "min(clamp(46px, 14vw,  84px),  7dvh)"; // ~6–7 lines
-  if (len < 80) return "min(clamp(36px, 11vw,  66px),  6dvh)"; // ~8–9 lines
-  if (len < 120) return "min(clamp(28px,  9vw,  50px),  5dvh)";
-  if (len < 180) return "min(clamp(22px,  7vw,  38px),  4dvh)";
-  return           "min(clamp(16px,  5vw,  28px),  4dvh)";
+  if (len < 25)  return "min(clamp(90px, 26vw, 160px), 18dvh)"; // ~2 lines
+  if (len < 40)  return "min(clamp(72px, 21vw, 120px), 14dvh)"; // ~3 lines
+  if (len < 55)  return "min(clamp(58px, 18vw,  96px), 10dvh)"; // ~4 lines
+  if (len < 75)  return "min(clamp(48px, 15vw,  80px),  8dvh)"; // ~5 lines
+  if (len < 120) return "min(clamp(36px, 11vw,  58px),  7dvh)"; // ~6–7 lines
+  return          "min(clamp(26px,  8vw,  42px),  6dvh)";
 }
 
 // ----- Fallback hero messages (loaded from JSON, bucket + day/night aware) -----
@@ -628,6 +627,14 @@ export default function Feather() {
   const bg = bgFor(code, temp, isDay);
   const cardTint = widgetTint(bg, isDay);
 
+  // Keep <meta name="theme-color"> in sync with the current background.
+  // This colours the browser chrome on Android and acts as the PWA splash tint.
+  // The splash override (white) is handled separately below.
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", phase === "loading" ? "#ffffff" : bg);
+  }, [bg, phase]);
+
   /* -------------------- RENDER -------------------- */
 
   const outerStyle = {
@@ -659,10 +666,14 @@ export default function Feather() {
   // ---- Splash ----
   if (phase === "loading") {
     return (
-      <div style={outerStyle}>
+      <div style={{ ...outerStyle, backgroundColor: "#ffffff", color: "rgba(0,0,0,0.88)" }}>
         {GlobalStyle}
         <div style={rootStyle}>
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            paddingTop: "env(safe-area-inset-top, 0px)",
+          }}>
             <div style={{ fontFamily: IMPACT_STACK, fontSize: "64px", letterSpacing: "-1px", animation: "featherFadeIn 700ms ease-out both" }}>
               F*eather
             </div>
