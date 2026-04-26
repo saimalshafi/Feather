@@ -1,6 +1,5 @@
 # F*eather
 
-> For the days you just need the f*cking weather
 
 ![F*eather screenshot](screenshot.png)
 
