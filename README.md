@@ -1,11 +1,9 @@
 # F*eather
 
-> Sarcastic weather, with attitude.
+> For when you just need the F*cking Weather
 
 <!-- Replace with an actual screenshot once deployed -->
 ![F*eather screenshot](screenshot-placeholder.png)
-
-**Live demo:** https://saimalshafi.github.io/Feather/
 
 ---
 
