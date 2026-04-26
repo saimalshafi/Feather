@@ -199,6 +199,20 @@ function cityLocalTime(timezone) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Saved cities persistence (localStorage)
+ * Index 0 is always the geo/home city — never persisted here.
+ * Only manually-added cities (index 1+) are saved.
+ * ------------------------------------------------------------------ */
+const SAVED_CITIES_KEY = "feather_cities";
+
+function readSavedCities() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(SAVED_CITIES_KEY) || "[]");
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+/* ------------------------------------------------------------------ *
  * Anti-repeat memory (per-city, last 5 messages, in localStorage)
  * ------------------------------------------------------------------ */
 const RECENT_KEY = (lat, lon) =>
@@ -381,6 +395,40 @@ export default function Feather() {
       : new Promise((r) => setTimeout(r, MIN_SPLASH_MS - elapsed));
   };
 
+  // ----- Restore saved cities silently in the background after boot -----
+  const restoreSavedCities = useCallback(async () => {
+    const saved = readSavedCities();
+    if (saved.length === 0) return;
+    const results = await Promise.allSettled(
+      saved.map(async (c) => {
+        const weatherUrl =
+          `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}` +
+          `&current=temperature_2m,apparent_temperature,weathercode,windspeed_10m,uv_index,relative_humidity_2m,is_day` +
+          `&hourly=temperature_2m,weathercode,is_day` +
+          `&daily=temperature_2m_max,temperature_2m_min,weathercode` +
+          `&timezone=auto&forecast_days=10`;
+        const aqiUrl =
+          `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${c.lat}&longitude=${c.lon}` +
+          `&current=european_aqi&timezone=auto`;
+        const [wRes, aRes] = await Promise.all([fetch(weatherUrl), fetch(aqiUrl).catch(() => null)]);
+        if (!wRes.ok) throw new Error();
+        const w = await wRes.json();
+        const a = aRes?.ok ? await aRes.json() : null;
+        const hero = await generateHero(buildHeroPayload(w, c.lat, c.lon));
+        return {
+          name: c.name, lat: c.lat, lon: c.lon,
+          weather: w,
+          aqi: a?.current?.european_aqi ?? null,
+          hero: hero.text,
+          isMyLocation: false,
+          timezone: w.timezone || c.timezone || "UTC",
+        };
+      })
+    );
+    const restored = results.filter(r => r.status === "fulfilled").map(r => r.value);
+    if (restored.length > 0) setCities(prev => [...prev, ...restored]);
+  }, []);
+
   // ----- Initial fetch pipeline (geolocation + error-screen search) -----
   const loadAll = useCallback(async (lat, lon, isMyLocation = false) => {
     try {
@@ -424,6 +472,7 @@ export default function Feather() {
       }]);
       setActiveIdx(0);
       setPhase("ready");
+      if (isMyLocation) restoreSavedCities();
     } catch {
       setGeoError("Could not load weather. Try again.");
       await waitForSplashMin();
@@ -450,6 +499,15 @@ export default function Feather() {
       { timeout: 10000 }
     );
   }, [loadAll]);
+
+  // ----- Persist manually-added cities (index 1+) to localStorage -----
+  useEffect(() => {
+    if (phase !== "ready") return;
+    try {
+      const toSave = cities.slice(1).map(({ name, lat, lon, timezone }) => ({ name, lat, lon, timezone }));
+      localStorage.setItem(SAVED_CITIES_KEY, JSON.stringify(toSave));
+    } catch { /* storage full or disabled */ }
+  }, [cities, phase]);
 
   // Keep viewportWidth in sync with the actual container
   useEffect(() => {
