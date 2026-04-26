@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+
+    <!-- PWA manifest -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Feather" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- Theme -->
+    <meta name="theme-color" content="#F5F5F2" />
+
+    <title>F*eather</title>
+    <style>
+      html, body, #root { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+      body { -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

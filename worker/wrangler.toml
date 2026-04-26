@@ -1,0 +1,10 @@
+name = "feather-proxy"
+main = "src/index.js"
+compatibility_date = "2025-04-01"
+
+[[kv_namespaces]]
+  binding = "RATE_LIMIT_KV"
+  id      = "231544ba3ca74924bbc26c536b6e3a96"
+
+[vars]
+  ALLOWED_ORIGIN = "https://saimalshafi.github.io"
