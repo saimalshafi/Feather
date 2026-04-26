@@ -7,6 +7,22 @@
  *   *                  → 404
  */
 
+import {
+  TEMP_BANDS,
+  CONDITION_BUCKETS,
+  BUCKET_TONES,
+} from "../../shared/buckets.js";
+
+// ── Build the temp-band and condition-override sections of the prompt
+//    dynamically from shared/buckets.js, so this can never drift again. ──
+const tempBandLines = TEMP_BANDS
+  .map(b => `- ${b.label.padEnd(18)} ${BUCKET_TONES[b.key]}`)
+  .join("\n");
+
+const conditionLines = CONDITION_BUCKETS
+  .map(b => `- ${b.key} (codes ${b.codes.join(", ")}): ${BUCKET_TONES[b.key]}`)
+  .join("\n");
+
 const SYSTEM_PROMPT = `You are the voice of F*eather, a brutally honest weather app.
 
 HARD LIMIT: 12 words MAXIMUM across the entire output. If you exceed 12 words, you have failed.
@@ -20,38 +36,74 @@ CRITICAL OPENER RULE: NEVER start with "It is", "It's", "Today", or any conjugat
 
 Tailor to temp + condition. These bands are EXACT — never blur between them.
 
-Temperature tone (applies when no precipitation condition is present):
-- 0°C and below:  frozen misery, existential dread
-- 1–10°C:         passive-aggressive disappointment
-- 11–15°C:        meh, jacket weather, nothing special
-- 16–22°C:        actually decent — suspicious optimism, mild appreciation. NEVER call this damp, gloomy, cold, or mediocre
-- 23–30°C:        sweaty, spicy discomfort
-- 31°C and above: unhinged rage at the sun
+Temperature tone (applies when no precipitation/fog/snow condition is present):
+${tempBandLines}
 
 Condition overrides (these take full priority over the temperature tone above):
-- Thunderstorm (codes 95, 96, 99): theatrical fear
-- Snow (codes 71–77, 85, 86):      childlike excitement if temp > 0°C; existential dread if ≤ 0°C
-- Rain (codes 61–67, 80–82):       dramatic suffering, soaked misery
-- Drizzle (codes 51–57):           low-grade irritation, damp annoyance — less dramatic than rain, more petty
-- Fog (codes 45, 48):              eerie, low-visibility jokes
-- Overcast/cloudy (codes 2–3):     NOT a precipitation event — let the temperature tone lead. Do not default to damp or gloomy
+${conditionLines}
+- Overcast/cloudy (codes 2–3): NOT a precipitation event — let the temperature tone lead. Do not default to damp or gloomy.
+- Clear sky (code 0):          full sunshine. Lean into sun/blue-sky imagery. Combine with temp tone.
+- Mainly clear (code 1):       mostly sunny with some clouds. Treat like clear sky but slightly subdued.
 
-Time-of-day awareness (time_context provided in user message):
-- morning: wake-up energy, get-ready vibe, coffee references welcome
-- day: activity-oriented, outdoors suggestions are fine
-- evening: winding-down energy, no urgent "go outside" suggestions
-- night: late and dark. NEVER suggest going outside. Rest, sleep, indoor focus only.
+Secondary signal rules (these MODIFY the base tone, do not replace it):
+- feels_like vs temp: if |feels_like − temp| ≥ 4°C, acknowledge the gap ("feels worse than the number says" / "warmer than it looks").
+- humidity ≥ 70 AND temp ≥ 23: add sticky/swampy/sweaty flavour.
+- humidity ≤ 25 AND temp ≥ 28: arid/dry-heat flavour, dehydration jokes.
+- wind 30–49 km/h: blustery, hat-thief tone.
+- wind ≥ 50 km/h: chaotic, gale-force, "stay grounded" tone.
+- uv_index ≥ 8: sunburn warnings, melanoma jokes welcome.
+- uv_index ≥ 11: extreme — skin-melting intensity.
+- temp_trend "warming": acknowledge it's improving ("warming up though").
+- temp_trend "cooling": acknowledge the drop ("getting colder fast").
+- temp_trend "stable": no trend mention.
 
-Examples (follow these EXACTLY for length and rhythm):
-- "Rain hammering everything outside. Stay in."  (6 words)
-- "Hotter than satan's balls. Stay hydrated."  (6 words)
-- "Snow's coming down like a b*tch! Stay warm."  (8 words)
-- "F*cking gorgeous day. Get outside."  (5 words)
-- "Cold as sh*t. Layer up."  (5 words)`;
+Time-of-day awareness (time_context is one of: dawn, morning, day, evening, dusk, night):
+- dawn (5–7am):    just-waking, sunrise references, "early" energy. Coffee welcome.
+- morning (8–10):  wake-up energy, get-ready vibe, coffee jokes welcome.
+- day (11–16):     activity-oriented, outdoors suggestions are fine.
+- evening (17–19): winding-down energy, no urgent "go outside" suggestions.
+- dusk (sunset):   moody/golden-hour vibe, the day ending, indoor pivot.
+- night (after dark): late and dark. NEVER suggest going outside. Rest, sleep, indoor focus only.
 
-const VALID_TIME_CONTEXTS = new Set(["morning", "day", "evening", "night"]);
+Seasonal anomaly hint (month is 1–12):
+- Snow in months 5–9 (northern summer-ish): treat as freak weather, surprised tone.
+- 27°C+ in months 12–2 (northern winter): treat as anomaly, "this isn't normal" energy.
+- Otherwise: ignore month, let other rules dominate.
+
+Anti-repeat rule:
+If a "recent" array is provided in the user message, DO NOT reuse the same opener word, the same simile, or the same advice phrase. Vary the structure.
+
+Examples (mix of tones — follow these EXACTLY for length and rhythm):
+- "Rain hammering everything outside. Stay in."           (6 words)
+- "Hotter than satan's balls. Stay hydrated."             (6 words)
+- "Snow's coming down like a b*tch! Stay warm."           (8 words)
+- "F*cking gorgeous day. Get outside."                    (5 words)
+- "Cold as sh*t. Layer up."                               (5 words)
+- "Sky's behaving for once. Enjoy the rare W."            (8 words)
+- "Crisp blue sky, mild breeze. Walk somewhere nice."     (8 words)
+- "Sun's actually being decent. Don't waste it."          (7 words)`;
+
+// ── Validation rules ───────────────────────────────────────────────────────
+const VALID_TIME_CONTEXTS = new Set(["dawn", "morning", "day", "evening", "dusk", "night"]);
+const VALID_TEMP_TRENDS   = new Set(["warming", "cooling", "stable"]);
 const RATE_LIMIT = 20;
 
+// Words that the OPENER must not be (first token, lowercased, stripped of punctuation).
+const BANNED_OPENERS = new Set([
+  "it", "its", "todays", "today", "is", "are", "was", "were", "be", "been", "am",
+]);
+
+function validateMessage(text) {
+  if (!text || typeof text !== "string") return { ok: false, reason: "empty" };
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return { ok: false, reason: "empty" };
+  if (words.length > 12)  return { ok: false, reason: "too_long" };
+  const first = words[0].toLowerCase().replace(/[^a-z]/g, "");
+  if (BANNED_OPENERS.has(first)) return { ok: false, reason: "banned_opener" };
+  return { ok: true };
+}
+
+// ── HTTP helpers ───────────────────────────────────────────────────────────
 function corsHeaders(origin) {
   return {
     "Access-Control-Allow-Origin": origin,
@@ -68,80 +120,97 @@ function json(body, status, extraHeaders = {}) {
   });
 }
 
+// ── Build the per-request user message ────────────────────────────────────
+function buildUserMessage(p) {
+  const lines = [
+    `Temperature: ${p.temp}°C (feels like ${p.feels_like}°C).`,
+    `Condition code: ${p.code}.`,
+    `Wind: ${p.wind} km/h. Humidity: ${p.humidity}%. UV index: ${p.uv_index}.`,
+    `Daylight: ${p.is_day ? "sun is up" : "sun is down"}. Time context: ${p.time_context}.`,
+    `Month: ${p.month}. Trend: ${p.temp_trend}.`,
+  ];
+  if (Array.isArray(p.recent) && p.recent.length > 0) {
+    const recentList = p.recent.slice(0, 5).map(m => `  - "${m}"`).join("\n");
+    lines.push(`Recently shown for this location (DO NOT repeat or paraphrase):\n${recentList}`);
+  }
+  return lines.join("\n");
+}
+
 export default {
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
     const allowedOrigin = env.ALLOWED_ORIGIN || "";
 
-    // ── CORS preflight ───────────────────────────────────────────────────────
+    // ── CORS preflight ───────────────────────────────────────────────────
     if (req.method === "OPTIONS" && url.pathname === "/generate") {
-      return new Response(null, {
-        status: 204,
-        headers: corsHeaders(allowedOrigin),
-      });
+      return new Response(null, { status: 204, headers: corsHeaders(allowedOrigin) });
     }
 
     const cors = corsHeaders(allowedOrigin);
 
-    // ── Route guard ──────────────────────────────────────────────────────────
     if (url.pathname !== "/generate" || req.method !== "POST") {
       return json({ error: "not_found" }, 404, cors);
     }
 
-    // ── Origin check ─────────────────────────────────────────────────────────
+    // ── Origin check ─────────────────────────────────────────────────────
     const origin = req.headers.get("Origin") || "";
     if (allowedOrigin && origin !== allowedOrigin) {
       return json({ error: "forbidden" }, 403, cors);
     }
 
-    // ── Parse + validate body ────────────────────────────────────────────────
+    // ── Parse + validate body ────────────────────────────────────────────
     let body;
-    try {
-      body = await req.json();
-    } catch {
-      return json({ error: "invalid_json" }, 400, cors);
+    try { body = await req.json(); }
+    catch { return json({ error: "invalid_json" }, 400, cors); }
+
+    const {
+      temp, code, wind, humidity,
+      feels_like, uv_index, is_day,
+      month, temp_trend,
+      time_context,
+      recent,
+    } = body;
+
+    const numbers = { temp, code, wind, humidity, feels_like, uv_index, month };
+    for (const [k, v] of Object.entries(numbers)) {
+      if (typeof v !== "number" || !Number.isFinite(v)) {
+        return json({ error: "bad_request", detail: `${k} must be a finite number` }, 400, cors);
+      }
+    }
+    if (typeof is_day !== "boolean")              return json({ error: "bad_request", detail: "is_day must be boolean" }, 400, cors);
+    if (!VALID_TIME_CONTEXTS.has(time_context))   return json({ error: "bad_request", detail: "invalid time_context" }, 400, cors);
+    if (!VALID_TEMP_TRENDS.has(temp_trend))       return json({ error: "bad_request", detail: "invalid temp_trend" }, 400, cors);
+    if (recent != null && (!Array.isArray(recent) || recent.some(m => typeof m !== "string"))) {
+      return json({ error: "bad_request", detail: "recent must be an array of strings" }, 400, cors);
     }
 
-    const { temp, code, wind, humidity, time_context } = body;
-    if (
-      typeof temp !== "number" ||
-      typeof code !== "number" ||
-      typeof wind !== "number" ||
-      typeof humidity !== "number" ||
-      !VALID_TIME_CONTEXTS.has(time_context)
-    ) {
-      return json(
-        { error: "bad_request", detail: "temp, code, wind, humidity must be numbers; time_context must be morning|day|evening|night" },
-        400,
-        cors,
-      );
-    }
-
-    // ── Rate limiting ────────────────────────────────────────────────────────
+    // ── Rate limiting ────────────────────────────────────────────────────
     const ip =
       req.headers.get("CF-Connecting-IP") ||
       (req.headers.get("X-Forwarded-For") || "").split(",")[0].trim() ||
       "unknown";
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD UTC
+    const today   = new Date().toISOString().slice(0, 10);
     const rateKey = `rl:${ip}:${today}`;
 
     const countStr = await env.RATE_LIMIT_KV.get(rateKey);
-    const count = parseInt(countStr || "0", 10);
+    const count    = parseInt(countStr || "0", 10);
 
     if (count >= RATE_LIMIT) {
-      return json(
-        { error: "rate_limited", limit: RATE_LIMIT, reset: "midnight UTC" },
-        429,
-        cors,
-      );
+      return json({ error: "rate_limited", limit: RATE_LIMIT, reset: "midnight UTC" }, 429, cors);
     }
 
-    // Increment — fire-and-forget so it doesn't block the response
     ctx.waitUntil(
       env.RATE_LIMIT_KV.put(rateKey, String(count + 1), { expirationTtl: 86400 }),
     );
 
-    // ── Call Anthropic ───────────────────────────────────────────────────────
+    // ── Call Anthropic ───────────────────────────────────────────────────
+    const userMessage = buildUserMessage({
+      temp, code, wind, humidity,
+      feels_like, uv_index, is_day,
+      month, temp_trend, time_context,
+      recent,
+    });
+
     let anthropicRes;
     try {
       anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
@@ -155,12 +224,7 @@ export default {
           model: "claude-haiku-4-5-20251001",
           max_tokens: 100,
           system: SYSTEM_PROMPT,
-          messages: [
-            {
-              role: "user",
-              content: `Temperature: ${temp}°C. Condition code: ${code}. Wind: ${wind} km/h. Humidity: ${humidity}%. Time context: ${time_context}.`,
-            },
-          ],
+          messages: [{ role: "user", content: userMessage }],
         }),
       });
     } catch (err) {
@@ -172,15 +236,16 @@ export default {
     }
 
     let data;
-    try {
-      data = await anthropicRes.json();
-    } catch {
-      return json({ error: "upstream_parse" }, 502, cors);
-    }
+    try { data = await anthropicRes.json(); }
+    catch { return json({ error: "upstream_parse" }, 502, cors); }
 
     const text = data?.content?.[0]?.text?.trim();
-    if (!text) {
-      return json({ error: "empty" }, 502, cors);
+    if (!text) return json({ error: "empty" }, 502, cors);
+
+    // ── Post-validate against the hard rules ─────────────────────────────
+    const v = validateMessage(text);
+    if (!v.ok) {
+      return json({ error: "validation_failed", reason: v.reason, attempted: text }, 502, cors);
     }
 
     return json({ text }, 200, cors);

@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import fallbackMessages from "./src/fallback-messages.json";
+import {
+  pickBucket,
+  timeContext,
+  timeContextToFallbackKey,
+  localHourFromISO,
+  monthFromISO,
+  tempTrend,
+} from "./shared/buckets.js";
 
 /* ------------------------------------------------------------------ *
  * F*eather — sarcastic weather app
@@ -47,29 +55,14 @@ function conditionName(code) {
   return "Unknown";
 }
 
-// ----- Condition + temperature -> palette bucket -----
-function pickBucket(code, temp) {
-  if (code === 95 || code === 96 || code === 99) return "thunderstorm";
-  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "snow";
-  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return "rain";
-  if (code >= 51 && code <= 57) return "drizzle";
-  if (code === 45 || code === 48) return "fog";
-  // codes 0–3 (clear → overcast) fall through to temp band
-  const t = temp ?? 20;
-  if (t <= 0)  return "freezing";
-  if (t <= 10) return "cold";
-  if (t <= 15) return "mild";
-  if (t <= 22) return "pleasant";
-  if (t <= 30) return "hot";
-  return "scorching";
-}
+// pickBucket lives in shared/buckets.js — single source of truth across client + worker.
 
 const PALETTE = {
   day: {
     thunderstorm: "#2E2E42",
-    snow:         "#DDE8F0",
+    snow:         "#E8F2FA",
     rain:         "#B8C8D8",
-    drizzle:      "#CADAE8",
+    drizzle:      "#C2D0DC",
     fog:          "#C8C8C0",
     freezing:     "#D6E8F5",
     cold:         "#E8EFF5",
@@ -80,9 +73,9 @@ const PALETTE = {
   },
   night: {
     thunderstorm: "#1A1A28",
-    snow:         "#1C2838",
+    snow:         "#2C3E55",
     rain:         "#1A2535",
-    drizzle:      "#1C2838",
+    drizzle:      "#162028",
     fog:          "#222220",
     freezing:     "#182030",
     cold:         "#1A2035",
@@ -178,7 +171,7 @@ function heroFontSize(text) {
 // ----- Fallback hero messages (loaded from JSON, bucket + day/night aware) -----
 function fallbackHero(temp, code, time_context = "day") {
   const bucket = pickBucket(code, temp);
-  const timeKey = (time_context === "night" || time_context === "evening") ? "night" : "day";
+  const timeKey = timeContextToFallbackKey(time_context);
   const arr = fallbackMessages?.[bucket]?.[timeKey];
   if (!arr || arr.length === 0) return "Weather's unreadable. Check outside yourself.";
   return arr[Math.floor(Math.random() * arr.length)];
@@ -193,24 +186,7 @@ function bgToGlassRgba(hex, alpha = 0.52) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// ----- Extract local hour from Open-Meteo ISO string ("2024-01-15T14:00") -----
-// Parses the time part directly — never uses new Date() to avoid device timezone bias.
-function localHourFromISO(iso) {
-  if (!iso) return 12;
-  const match = iso.match(/T(\d{2}):/);
-  return match ? parseInt(match[1], 10) : 12;
-}
-
-// Derive human time context from is_day + local hour
-function timeContext(isDay, localHour) {
-  if (!isDay) {
-    if (localHour >= 17 && localHour < 22) return "evening";
-    return "night";
-  }
-  if (localHour < 11) return "morning";
-  if (localHour >= 17) return "evening";
-  return "day";
-}
+// localHourFromISO + timeContext live in shared/buckets.js (now with dawn/dusk granularity).
 
 // ----- Local time for a given IANA timezone -----
 function cityLocalTime(timezone) {
@@ -224,35 +200,100 @@ function cityLocalTime(timezone) {
 }
 
 /* ------------------------------------------------------------------ *
- * Claude API call (browser-direct)
+ * Anti-repeat memory (per-city, last 5 messages, in localStorage)
  * ------------------------------------------------------------------ */
-async function generateHero({ temp, code, wind, humidity, time_context = "day" }) {
+const RECENT_KEY = (lat, lon) =>
+  `feather_recent_${Number(lat).toFixed(2)}_${Number(lon).toFixed(2)}`;
+
+function readRecent(lat, lon) {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY(lat, lon));
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.slice(0, 5) : [];
+  } catch { return []; }
+}
+
+function writeRecent(lat, lon, message) {
+  try {
+    const prev = readRecent(lat, lon);
+    const next = [message, ...prev.filter(m => m !== message)].slice(0, 5);
+    localStorage.setItem(RECENT_KEY(lat, lon), JSON.stringify(next));
+  } catch { /* quota or disabled — skip */ }
+}
+
+/* ------------------------------------------------------------------ *
+ * Build the AI request payload from an Open-Meteo response
+ * ------------------------------------------------------------------ */
+function buildHeroPayload(w, lat, lon) {
+  const c = w.current;
+  const localHour = localHourFromISO(c.time);
+  const isDay = c.is_day === 1;
+  return {
+    temp:       Math.round(c.temperature_2m),
+    code:       c.weathercode,
+    wind:       Math.round(c.windspeed_10m),
+    humidity:   Math.round(c.relative_humidity_2m),
+    feels_like: Math.round(c.apparent_temperature),
+    uv_index:   c.uv_index != null ? Math.round(c.uv_index) : 0,
+    is_day:     isDay,
+    month:      monthFromISO(c.time),
+    temp_trend: tempTrend(c.temperature_2m, w.daily?.temperature_2m_max?.[0], w.daily?.temperature_2m_min?.[0]),
+    time_context: timeContext(isDay, localHour),
+    lat, lon,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * Claude API call — proxied through Cloudflare Worker
+ * ------------------------------------------------------------------ */
+async function generateHero(payload) {
+  const {
+    temp, code, wind, humidity,
+    feels_like, uv_index, is_day,
+    month, temp_trend,
+    time_context = "day",
+    lat, lon,
+  } = payload;
+
   const PROXY = import.meta.env.VITE_PROXY_URL;
+  const fb = () => fallbackHero(temp, code, time_context);
+
   if (!PROXY) {
     console.log("%c[F*eather] source: FALLBACK (no proxy configured)", "color:#b58b00;font-weight:bold");
-    return { text: fallbackHero(temp, code, time_context), source: "fallback", reason: "no_proxy" };
+    return { text: fb(), source: "fallback", reason: "no_proxy" };
   }
+
+  const recent = (lat != null && lon != null) ? readRecent(lat, lon) : [];
+
   try {
     const res = await fetch(`${PROXY}/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ temp, code, wind, humidity, time_context }),
+      body: JSON.stringify({
+        temp, code, wind, humidity,
+        feels_like, uv_index, is_day,
+        month, temp_trend,
+        time_context,
+        recent,
+      }),
     });
     if (!res.ok) {
       const reason = res.status === 429 ? "rate_limited" : `http_${res.status}`;
       console.log(`%c[F*eather] source: FALLBACK (${reason})`, "color:#b58b00;font-weight:bold");
-      return { text: fallbackHero(temp, code, time_context), source: "fallback", reason };
+      return { text: fb(), source: "fallback", reason };
     }
     const data = await res.json();
     if (!data.text) {
       console.log("%c[F*eather] source: FALLBACK (empty response)", "color:#b58b00;font-weight:bold");
-      return { text: fallbackHero(temp, code, time_context), source: "fallback", reason: "empty" };
+      return { text: fb(), source: "fallback", reason: "empty" };
     }
     console.log("%c[F*eather] source: ANTHROPIC", "color:#2e7d32;font-weight:bold");
+    if (lat != null && lon != null) writeRecent(lat, lon, data.text);
     return { text: data.text, source: "anthropic", reason: "ok" };
   } catch (err) {
     console.log(`%c[F*eather] source: FALLBACK (${err.message})`, "color:#b58b00;font-weight:bold");
-    return { text: fallbackHero(temp, code, time_context), source: "fallback", reason: "fetch_error" };
+    return { text: fb(), source: "fallback", reason: "fetch_error" };
   }
 }
 
@@ -365,17 +406,8 @@ export default function Feather() {
         g?.address?.city || g?.address?.town || g?.address?.village ||
         g?.address?.municipality || g?.address?.county || "Your Area";
 
-      const localHour = localHourFromISO(w.current.time);
-      const tc = timeContext(w.current.is_day === 1, localHour);
-
       const [result] = await Promise.all([
-        generateHero({
-          temp: Math.round(w.current.temperature_2m),
-          code: w.current.weathercode,
-          wind: Math.round(w.current.windspeed_10m),
-          humidity: Math.round(w.current.relative_humidity_2m),
-          time_context: tc,
-        }),
+        generateHero(buildHeroPayload(w, lat, lon)),
         waitForSplashMin(),
       ]);
 
@@ -463,15 +495,7 @@ export default function Feather() {
       if (!wRes.ok) throw new Error();
       const w = await wRes.json();
       const a = aRes && aRes.ok ? await aRes.json() : null;
-      const cityLocalHour = localHourFromISO(w.current.time);
-      const cityTc = timeContext(w.current.is_day === 1, cityLocalHour);
-      const result = await generateHero({
-        temp: Math.round(w.current.temperature_2m),
-        code: w.current.weathercode,
-        wind: Math.round(w.current.windspeed_10m),
-        humidity: Math.round(w.current.relative_humidity_2m),
-        time_context: cityTc,
-      });
+      const result = await generateHero(buildHeroPayload(w, hit.latitude, hit.longitude));
 
       const newIdx = cities.length;
       setCities(prev => [...prev, {
@@ -514,15 +538,7 @@ export default function Feather() {
     setRefreshing(true);
     setHeroVisible(false);
     await new Promise((r) => setTimeout(r, 300));
-    const refreshHour = localHourFromISO(w.current.time);
-    const refreshTc = timeContext(w.current.is_day === 1, refreshHour);
-    const result = await generateHero({
-      temp: Math.round(w.current.temperature_2m),
-      code: w.current.weathercode,
-      wind: Math.round(w.current.windspeed_10m),
-      humidity: Math.round(w.current.relative_humidity_2m),
-      time_context: refreshTc,
-    });
+    const result = await generateHero(buildHeroPayload(w, city.lat, city.lon));
     setCities(prev => prev.map((c, i) => i === activeIdx ? { ...c, hero: result.text } : c));
     setHeroVisible(true);
     setRefreshing(false);
