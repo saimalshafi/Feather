@@ -189,24 +189,30 @@ export default {
       return json({ error: "bad_request", detail: "recent must be an array of strings" }, 400, cors);
     }
 
-    // ── Rate limiting ────────────────────────────────────────────────────
-    const ip =
-      req.headers.get("CF-Connecting-IP") ||
-      (req.headers.get("X-Forwarded-For") || "").split(",")[0].trim() ||
-      "unknown";
-    const today   = new Date().toISOString().slice(0, 10);
-    const rateKey = `rl:${ip}:${today}`;
+    // ── Rate limiting (bypassed if correct X-Bypass-Key header is present) ─
+    const bypassKey = env.BYPASS_KEY || "";
+    const requestKey = req.headers.get("X-Bypass-Key") || "";
+    const bypassed = bypassKey && requestKey === bypassKey;
 
-    const countStr = await env.RATE_LIMIT_KV.get(rateKey);
-    const count    = parseInt(countStr || "0", 10);
+    if (!bypassed) {
+      const ip =
+        req.headers.get("CF-Connecting-IP") ||
+        (req.headers.get("X-Forwarded-For") || "").split(",")[0].trim() ||
+        "unknown";
+      const today   = new Date().toISOString().slice(0, 10);
+      const rateKey = `rl:${ip}:${today}`;
 
-    if (count >= RATE_LIMIT) {
-      return json({ error: "rate_limited", limit: RATE_LIMIT, reset: "midnight UTC" }, 429, cors);
+      const countStr = await env.RATE_LIMIT_KV.get(rateKey);
+      const count    = parseInt(countStr || "0", 10);
+
+      if (count >= RATE_LIMIT) {
+        return json({ error: "rate_limited", limit: RATE_LIMIT, reset: "midnight UTC" }, 429, cors);
+      }
+
+      ctx.waitUntil(
+        env.RATE_LIMIT_KV.put(rateKey, String(count + 1), { expirationTtl: 86400 }),
+      );
     }
-
-    ctx.waitUntil(
-      env.RATE_LIMIT_KV.put(rateKey, String(count + 1), { expirationTtl: 86400 }),
-    );
 
     // ── Call Anthropic ───────────────────────────────────────────────────
     const userMessage = buildUserMessage({

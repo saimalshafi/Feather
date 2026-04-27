@@ -280,9 +280,13 @@ async function generateHero(payload) {
   const recent = (lat != null && lon != null) ? readRecent(lat, lon) : [];
 
   try {
+    const BYPASS = import.meta.env.VITE_BYPASS_KEY;
     const res = await fetch(`${PROXY}/generate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(BYPASS ? { "X-Bypass-Key": BYPASS } : {}),
+      },
       body: JSON.stringify({
         temp, code, wind, humidity,
         feels_like, uv_index, is_day,
