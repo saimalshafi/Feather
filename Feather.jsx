@@ -334,16 +334,6 @@ const GlobalStyle = (
     html, body, #root { margin: 0; padding: 0; height: 100%; }
     body { overscroll-behavior: none; }
     :root { --bottom-gap: 20px; --content-bottom: 80px; }
-    @media (display-mode: standalone) {
-      :root {
-        --bottom-gap: calc(env(safe-area-inset-bottom, 0px) + 4px);
-        --content-bottom: calc(env(safe-area-inset-bottom, 0px) + 46px);
-      }
-    }
-    [data-standalone="true"] {
-      --bottom-gap: calc(env(safe-area-inset-bottom, 0px) + 4px) !important;
-      --content-bottom: calc(env(safe-area-inset-bottom, 0px) + 46px) !important;
-    }
     .feather-noscroll::-webkit-scrollbar { display: none; }
     .feather-noscroll { scrollbar-width: none; -ms-overflow-style: none; }
     @keyframes featherPulse {
@@ -491,41 +481,6 @@ export default function Feather() {
     }
   }, []);
 
-  // ----- Standalone detection: set data-standalone on <html> for reliable PWA spacing -----
-  useEffect(() => {
-    const standalone =
-      window.navigator.standalone === true ||
-      window.matchMedia("(display-mode: standalone)").matches;
-    if (standalone) document.documentElement.setAttribute("data-standalone", "true");
-  }, []);
-
-  // ----- DEBUG OVERLAY (remove after diagnosing spacing issue) -----
-  const [debugInfo, setDebugInfo] = useState(null);
-  useEffect(() => {
-    const el = document.createElement("div");
-    document.body.appendChild(el);
-    el.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.85);color:#fff;font-size:13px;font-family:monospace;padding:16px 20px;border-radius:12px;z-index:99999;white-space:pre;line-height:1.6;pointer-events:none;";
-    const update = () => {
-      const style = getComputedStyle(document.documentElement);
-      const bg   = style.getPropertyValue("--bottom-gap").trim();
-      const cb   = style.getPropertyValue("--content-bottom").trim();
-      const attr = document.documentElement.getAttribute("data-standalone");
-      const sab  = CSS.supports("padding-bottom", "env(safe-area-inset-bottom)") ? "supported" : "unsupported";
-      el.textContent = [
-        `navigator.standalone: ${window.navigator.standalone}`,
-        `matchMedia standalone: ${window.matchMedia("(display-mode: standalone)").matches}`,
-        `data-standalone attr:  ${attr}`,
-        `--bottom-gap:          ${bg}`,
-        `--content-bottom:      ${cb}`,
-        `env(safe-area-inset): ${sab}`,
-        `innerHeight:           ${window.innerHeight}`,
-        `devicePixelRatio:      ${window.devicePixelRatio}`,
-      ].join("\n");
-    };
-    update();
-    const t = setInterval(update, 500);
-    return () => { clearInterval(t); document.body.removeChild(el); };
-  }, []);
 
   // ----- Boot: geolocate -----
   const didBoot = useRef(false);
