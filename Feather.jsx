@@ -964,7 +964,7 @@ export default function Feather() {
         {/* ---- Floating top pill (tappable) ---- */}
         <div style={{
           position: "absolute",
-          top: "calc(env(safe-area-inset-top, 0px) + 14px)",
+          top: "calc(env(safe-area-inset-top, 0px) + 20px)",
           left: "50%",
           transform: "translateX(-50%)",
           zIndex: 10,
