@@ -91,6 +91,20 @@ function bgFor(code, temp, isDay) {
   return PALETTE[isDay ? "day" : "night"][pickBucket(code, temp)];
 }
 
+// Darkens a hex color by a fixed amount (0–1 scale of the 0–255 range).
+function darkenHex(hex, amount = 0.07) {
+  const h = hex.replace("#", "");
+  const r = Math.max(0, parseInt(h.slice(0, 2), 16) - Math.round(255 * amount));
+  const g = Math.max(0, parseInt(h.slice(2, 4), 16) - Math.round(255 * amount));
+  const b = Math.max(0, parseInt(h.slice(4, 6), 16) - Math.round(255 * amount));
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
+
+// Returns a subtle top-to-bottom gradient from base color to a slightly darker shade.
+function bgGradient(color) {
+  return `linear-gradient(180deg, ${color} 0%, ${darkenHex(color)} 100%)`;
+}
+
 // Widget card tint: day = slightly darkened; night = slightly lifted
 function widgetTint(bg, isDay = true) {
   const hex = bg.replace("#", "");
@@ -336,7 +350,6 @@ const GlobalStyle = (
     :root { --bottom-gap: 20px; --content-bottom: 80px; }
     .feather-noscroll::-webkit-scrollbar { display: none; }
     .feather-noscroll { scrollbar-width: none; -ms-overflow-style: none; }
-    .feather-search-input::placeholder { color: rgba(255,255,255,0.35); }
     @keyframes featherPulse {
       0%, 100% { opacity: 1; }
       50%      { opacity: 0.4; }
@@ -696,7 +709,7 @@ export default function Feather() {
   // This colours the browser chrome on Android and acts as the PWA splash tint.
   // The splash override (white) is handled separately below.
   useEffect(() => {
-    const color = phase === "loading" || showCities ? "#000000" : bg;
+    const color = phase === "loading" || showCities ? "#ffffff" : bg;
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", color);
     // Fill any gap between the app div and screen edge (home indicator area)
@@ -710,9 +723,9 @@ export default function Feather() {
     inset: 0,
     width: "100vw",
     height: "100dvh",
-    backgroundColor: bg,
+    background: bgGradient(bg),
     color: theme.fg,
-    transition: "background-color 800ms ease, color 800ms ease",
+    transition: "color 800ms ease",
     overflow: "hidden",
     userSelect: "none",
     WebkitUserSelect: "none",
@@ -734,7 +747,7 @@ export default function Feather() {
   // ---- Splash ----
   if (phase === "loading") {
     return (
-      <div style={{ ...outerStyle, backgroundColor: "#000000", color: "rgba(255,255,255,0.92)" }}>
+      <div style={{ ...outerStyle, background: "#ffffff", color: "rgba(0,0,0,0.88)" }}>
         {GlobalStyle}
         <div style={rootStyle}>
           <div style={{
@@ -1149,7 +1162,7 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
   return (
     <div style={{
       position: "fixed", inset: 0,
-      backgroundColor: "#000000",
+      backgroundColor: "#ffffff",
       display: "flex", justifyContent: "center",
       fontFamily: SFPRO_STACK,
       userSelect: "none", WebkitUserSelect: "none",
@@ -1159,7 +1172,7 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
 
         {/* Header */}
         <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 20px) 20px 24px", display: "flex", justifyContent: "flex-start", alignItems: "flex-end" }}>
-          <div style={{ fontFamily: IMPACT_STACK, fontSize: "34px", letterSpacing: "-0.5px", color: "#ffffff" }}>F*eather</div>
+          <div style={{ fontFamily: IMPACT_STACK, fontSize: "34px", letterSpacing: "-0.5px", color: "#111" }}>F*eather</div>
         </div>
 
         {/* City cards */}
@@ -1209,7 +1222,7 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
                   }}
                   style={{
                     position: "relative", zIndex: 1,
-                    background: cardBg,
+                    background: bgGradient(cardBg),
                     border: "none",
                     borderRadius: "18px",
                     padding: "18px 20px 16px",
@@ -1246,26 +1259,26 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
         {/* Search bar + suggestions */}
         {/* zIndex: 20 ensures the dropdown floats above city cards (backdrop-filter on each card
             creates a new stacking context that would otherwise paint over the dropdown) */}
-        <div ref={searchAreaRef} style={{ padding: "10px 16px", paddingBottom: "var(--bottom-gap)", background: "#000000", position: "relative", zIndex: 20 }}>
+        <div ref={searchAreaRef} style={{ padding: "10px 16px", paddingBottom: "var(--bottom-gap)", background: "#ffffff", position: "relative", zIndex: 20 }}>
 
           {/* Suggestions dropdown */}
           {(suggestions.length > 0 || suggestionsLoading) && (
             <div style={{
               position: "absolute", bottom: "100%", left: "16px", right: "16px",
               marginBottom: "6px",
-              background: "rgba(28,28,30,0.96)",
-              backdropFilter: "blur(28px) saturate(180%)",
-              WebkitBackdropFilter: "blur(28px) saturate(180%)",
-              border: "1px solid rgba(255,255,255,0.10)",
+              background: "rgba(240,240,245,0.85)",
+              backdropFilter: "blur(28px) saturate(200%)",
+              WebkitBackdropFilter: "blur(28px) saturate(200%)",
+              border: "1px solid rgba(255,255,255,0.65)",
               borderRadius: "16px",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
               overflow: "hidden",
               zIndex: 21,
             }}>
               {suggestionsLoading && suggestions.length === 0 && (
                 <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: "10px" }}>
-                  <div style={{ width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.15)", borderTopColor: "rgba(255,255,255,0.7)", borderRadius: "50%", animation: "featherSpin 0.8s linear infinite" }} />
-                  <span style={{ fontFamily: SFPRO_STACK, fontSize: "14px", color: "rgba(255,255,255,0.5)" }}>Searching…</span>
+                  <div style={{ width: "13px", height: "13px", border: "2px solid rgba(0,0,0,0.12)", borderTopColor: "rgba(0,0,0,0.5)", borderRadius: "50%", animation: "featherSpin 0.8s linear infinite" }} />
+                  <span style={{ fontFamily: SFPRO_STACK, fontSize: "14px", color: "rgba(0,0,0,0.5)" }}>Searching…</span>
                 </div>
               )}
               {suggestions.map((hit, i) => (
@@ -1274,13 +1287,13 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
                   onClick={() => handleSelectSuggestion(hit)}
                   style={{
                     padding: "12px 16px",
-                    borderBottom: i < suggestions.length - 1 ? "1px solid rgba(255,255,255,0.08)" : "none",
+                    borderBottom: i < suggestions.length - 1 ? "1px solid rgba(0,0,0,0.06)" : "none",
                     cursor: "pointer",
                     display: "flex", flexDirection: "column", gap: "2px",
                   }}
                 >
-                  <div style={{ fontFamily: SFPRO_STACK, fontSize: "15px", fontWeight: 500, color: "#ffffff" }}>{hit.name}</div>
-                  <div style={{ fontFamily: SFPRO_STACK, fontSize: "12px", color: "rgba(255,255,255,0.45)" }}>
+                  <div style={{ fontFamily: SFPRO_STACK, fontSize: "15px", fontWeight: 500, color: "#111" }}>{hit.name}</div>
+                  <div style={{ fontFamily: SFPRO_STACK, fontSize: "12px", color: "rgba(0,0,0,0.45)" }}>
                     {[hit.admin1, hit.country].filter(Boolean).join(", ")}
                   </div>
                 </div>
@@ -1291,8 +1304,8 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
           {citySearchError && (
             <div style={{ fontFamily: SFPRO_STACK, fontSize: "13px", color: "#c0392b", marginBottom: "8px", paddingLeft: "2px" }}>{citySearchError}</div>
           )}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "rgba(255,255,255,0.10)", borderRadius: "12px", padding: "10px 14px" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "rgba(0,0,0,0.07)", borderRadius: "12px", padding: "10px 14px" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.38)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
@@ -1300,11 +1313,10 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
               value={citySearch}
               onChange={(e) => setCitySearch(e.target.value)}
               placeholder="Search for a city"
-              className="feather-search-input"
-              style={{ flex: 1, fontFamily: SFPRO_STACK, fontSize: "15px", border: "none", background: "transparent", outline: "none", color: "#ffffff", caretColor: "#ffffff" }}
+              style={{ flex: 1, fontFamily: SFPRO_STACK, fontSize: "15px", border: "none", background: "transparent", outline: "none", color: "#111" }}
             />
             {citySearching && (
-              <div style={{ width: "14px", height: "14px", border: "2px solid rgba(255,255,255,0.15)", borderTopColor: "rgba(255,255,255,0.7)", borderRadius: "50%", animation: "featherSpin 0.8s linear infinite", flexShrink: 0 }} />
+              <div style={{ width: "14px", height: "14px", border: "2px solid rgba(0,0,0,0.15)", borderTopColor: "rgba(0,0,0,0.55)", borderRadius: "50%", animation: "featherSpin 0.8s linear infinite", flexShrink: 0 }} />
             )}
           </div>
         </div>
