@@ -499,6 +499,34 @@ export default function Feather() {
     if (standalone) document.documentElement.setAttribute("data-standalone", "true");
   }, []);
 
+  // ----- DEBUG OVERLAY (remove after diagnosing spacing issue) -----
+  const [debugInfo, setDebugInfo] = useState(null);
+  useEffect(() => {
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+    el.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.85);color:#fff;font-size:13px;font-family:monospace;padding:16px 20px;border-radius:12px;z-index:99999;white-space:pre;line-height:1.6;pointer-events:none;";
+    const update = () => {
+      const style = getComputedStyle(document.documentElement);
+      const bg   = style.getPropertyValue("--bottom-gap").trim();
+      const cb   = style.getPropertyValue("--content-bottom").trim();
+      const attr = document.documentElement.getAttribute("data-standalone");
+      const sab  = CSS.supports("padding-bottom", "env(safe-area-inset-bottom)") ? "supported" : "unsupported";
+      el.textContent = [
+        `navigator.standalone: ${window.navigator.standalone}`,
+        `matchMedia standalone: ${window.matchMedia("(display-mode: standalone)").matches}`,
+        `data-standalone attr:  ${attr}`,
+        `--bottom-gap:          ${bg}`,
+        `--content-bottom:      ${cb}`,
+        `env(safe-area-inset): ${sab}`,
+        `innerHeight:           ${window.innerHeight}`,
+        `devicePixelRatio:      ${window.devicePixelRatio}`,
+      ].join("\n");
+    };
+    update();
+    const t = setInterval(update, 500);
+    return () => { clearInterval(t); document.body.removeChild(el); };
+  }, []);
+
   // ----- Boot: geolocate -----
   const didBoot = useRef(false);
   useEffect(() => {
