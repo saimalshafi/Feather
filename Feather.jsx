@@ -1142,9 +1142,16 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
     const timer = setTimeout(async () => {
       setSuggestionsLoading(true);
       try {
-        const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6`);
+        const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=10`);
         const d = await r.json();
-        setSuggestions(d?.results || []);
+        const seen = new Set();
+        const unique = (d?.results || []).filter(hit => {
+          const key = `${hit.name}|${hit.admin1 || ""}|${hit.country || ""}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }).slice(0, 6);
+        setSuggestions(unique);
       } catch {
         setSuggestions([]);
       } finally {
