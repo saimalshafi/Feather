@@ -329,9 +329,12 @@ const GlobalStyle = (
     *, *::before, *::after { box-sizing: border-box; }
     html, body, #root { margin: 0; padding: 0; height: 100%; }
     body { overscroll-behavior: none; }
-    :root { --bottom-gap: 20px; }
+    :root { --bottom-gap: 20px; --content-bottom: 80px; }
     @media (display-mode: standalone) {
-      :root { --bottom-gap: calc(env(safe-area-inset-bottom, 0px) + 4px); }
+      :root {
+        --bottom-gap: calc(env(safe-area-inset-bottom, 0px) + 4px);
+        --content-bottom: calc(env(safe-area-inset-bottom, 0px) + 46px);
+      }
     }
     .feather-noscroll::-webkit-scrollbar { display: none; }
     .feather-noscroll { scrollbar-width: none; -ms-overflow-style: none; }
@@ -868,7 +871,7 @@ export default function Feather() {
             width: "50%", height: "100%", position: "relative",
             display: "flex", flexDirection: "column", alignItems: "center",
             paddingTop: "calc(env(safe-area-inset-top, 0px) + 110px)",
-            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
+            paddingBottom: "var(--content-bottom)",
             paddingLeft: "20px", paddingRight: "20px",
           }}>
             {/* Temperature */}
@@ -901,7 +904,7 @@ export default function Feather() {
             width: "50%", height: "100%", overflowY: "auto",
             paddingTop: "calc(env(safe-area-inset-top, 0px) + 90px)",
             paddingRight: "14px", paddingLeft: "14px",
-            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
+            paddingBottom: "var(--content-bottom)",
           }}>
             <div style={sectionHeaderStyle(theme)}>Hourly Forecast</div>
 
