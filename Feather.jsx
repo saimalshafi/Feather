@@ -340,6 +340,10 @@ const GlobalStyle = (
         --content-bottom: calc(env(safe-area-inset-bottom, 0px) + 46px);
       }
     }
+    [data-standalone="true"] {
+      --bottom-gap: calc(env(safe-area-inset-bottom, 0px) + 4px) !important;
+      --content-bottom: calc(env(safe-area-inset-bottom, 0px) + 46px) !important;
+    }
     .feather-noscroll::-webkit-scrollbar { display: none; }
     .feather-noscroll { scrollbar-width: none; -ms-overflow-style: none; }
     @keyframes featherPulse {
@@ -485,6 +489,14 @@ export default function Feather() {
       await waitForSplashMin();
       setPhase("error");
     }
+  }, []);
+
+  // ----- Standalone detection: set data-standalone on <html> for reliable PWA spacing -----
+  useEffect(() => {
+    const standalone =
+      window.navigator.standalone === true ||
+      window.matchMedia("(display-mode: standalone)").matches;
+    if (standalone) document.documentElement.setAttribute("data-standalone", "true");
   }, []);
 
   // ----- Boot: geolocate -----
