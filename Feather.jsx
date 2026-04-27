@@ -874,14 +874,14 @@ export default function Feather() {
             paddingLeft: "20px", paddingRight: "20px",
           }}>
             {/* Temperature */}
-            <div style={{ marginBottom: "8px", opacity: refreshing ? 0 : 1, transition: "opacity 200ms ease" }}>
-              <div style={{ fontFamily: IMPACT_STACK, fontSize: "56px", color: theme.fgMuted, letterSpacing: "-1px", lineHeight: 1 }}>
+            <div style={{ marginBottom: "40px", opacity: refreshing ? 0 : 1, transition: "opacity 200ms ease" }}>
+              <div style={{ fontFamily: IMPACT_STACK, fontSize: "32px", color: theme.fgMuted, letterSpacing: "-0.5px", lineHeight: 1 }}>
                 {temp != null ? `${temp}°` : "—"}
               </div>
             </div>
 
-            {/* Hero text */}
-            <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "0", width: "100%", overflow: "hidden" }}>
+            {/* Hero text — starts from the top after the temp, flows downward */}
+            <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "0", width: "100%", overflow: "hidden" }}>
               {phase === "ai_loading" ? (
                 <div style={{ fontFamily: IMPACT_STACK, fontSize: "88px", textAlign: "center", lineHeight: 1, animation: "featherPulse 1.2s ease-in-out infinite" }}>...</div>
               ) : (
