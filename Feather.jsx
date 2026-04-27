@@ -169,28 +169,54 @@ function feelsLikeDescriptor(temp, feels, wind) {
 }
 
 // ----- Auto-size hero font based on text length -----
-// Text is top-aligned + overflow:hidden — container handles clipping, no dvh cap needed.
-// Also caps by longest-word width so no single word overflows the container.
+// Binary-search for the largest font size (px) where all text fits inside the
+// available width AND height — simulating word-wrap to count real line count.
+//
+// Impact character width ≈ 0.56 × fontSize (empirical for this weight).
+// Overhead subtracted from innerHeight: safe-area-top (~59) + paddingTop(110)
+//   + temp block(~72) + paddingBottom(80) ≈ 321px.
 function heroFontSize(text) {
-  const len = (text || "").length;
+  if (!text) return "72px";
 
-  // Base size from total character count
-  let base;
-  if (len < 25)  base = "clamp(90px, 26vw, 160px)";
-  else if (len < 40)  base = "clamp(80px, 23vw, 130px)";
-  else if (len < 55)  base = "clamp(68px, 20vw, 108px)";
-  else if (len < 75)  base = "clamp(58px, 17vw,  90px)";
-  else if (len < 120) base = "clamp(46px, 13vw,  70px)";
-  else                base = "clamp(32px,  9vw,  50px)";
+  const CHAR_RATIO = 0.56;   // Impact em-width per character
+  const LINE_H    = 0.98;    // CSS lineHeight value
+  const OVERHEAD  = 321;     // px consumed above/below the hero flex container
 
-  // Hard cap: longest word must fit on one line.
-  // Impact ≈ 0.62em per character. Available width = viewport − 40px side padding.
-  const words = text ? text.split(/\s+/) : [];
+  const availW = (typeof window !== "undefined" ? window.innerWidth  : 393) - 40;
+  const availH = (typeof window !== "undefined" ? window.innerHeight : 852) - OVERHEAD;
+
+  const words = text.split(/\s+/).filter(Boolean);
   const longest = words.reduce((m, w) => Math.max(m, w.length), 1);
-  const availW = (typeof window !== "undefined" ? window.innerWidth : 400) - 40;
-  const maxPx = Math.floor(availW / (longest * 0.62));
 
-  return `min(${base}, ${maxPx}px)`;
+  // Simulate CSS word-wrap for a given font size, return number of lines.
+  function lineCount(size) {
+    let lines = 1, lineW = 0;
+    const spaceW = size * CHAR_RATIO;
+    for (const w of words) {
+      const ww = w.length * size * CHAR_RATIO;
+      if (lineW === 0) {
+        lineW = ww;
+      } else if (lineW + spaceW + ww <= availW) {
+        lineW += spaceW + ww;
+      } else {
+        lines++;
+        lineW = ww;
+      }
+    }
+    return lines;
+  }
+
+  // Binary search: largest size where text fits both axes.
+  let lo = 26, hi = 160;
+  for (let i = 0; i < 16; i++) {
+    const mid = (lo + hi) / 2;
+    const fits =
+      lineCount(mid) * mid * LINE_H <= availH &&
+      longest * mid * CHAR_RATIO   <= availW;
+    if (fits) lo = mid; else hi = mid;
+  }
+
+  return `${Math.max(26, Math.floor(lo))}px`;
 }
 
 // ----- Fallback hero messages (loaded from JSON, bucket + day/night aware) -----
