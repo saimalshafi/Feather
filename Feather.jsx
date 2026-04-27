@@ -169,16 +169,15 @@ function feelsLikeDescriptor(temp, feels, wind) {
 }
 
 // ----- Auto-size hero font based on text length -----
-// Available hero height ≈ 55dvh (100dvh minus temp, top/bottom padding, safe areas, dots).
-// Target: text block fills ~70% of that space.
+// Text is top-aligned + overflow:hidden — container handles clipping, no dvh cap needed.
 function heroFontSize(text) {
   const len = (text || "").length;
-  if (len < 25)  return "min(clamp(90px, 26vw, 160px), 18dvh)"; // ~2 lines
-  if (len < 40)  return "min(clamp(72px, 21vw, 120px), 14dvh)"; // ~3 lines
-  if (len < 55)  return "min(clamp(58px, 18vw,  96px), 10dvh)"; // ~4 lines
-  if (len < 75)  return "min(clamp(48px, 15vw,  80px),  8dvh)"; // ~5 lines
-  if (len < 120) return "min(clamp(36px, 11vw,  58px),  7dvh)"; // ~6–7 lines
-  return          "min(clamp(26px,  8vw,  42px),  6dvh)";
+  if (len < 25)  return "clamp(90px, 26vw, 160px)"; // ~2 lines
+  if (len < 40)  return "clamp(80px, 23vw, 130px)"; // ~3 lines
+  if (len < 55)  return "clamp(68px, 20vw, 108px)"; // ~4 lines
+  if (len < 75)  return "clamp(58px, 17vw,  90px)"; // ~5 lines
+  if (len < 120) return "clamp(46px, 13vw,  70px)"; // ~6–7 lines
+  return          "clamp(32px,  9vw,  50px)";
 }
 
 // ----- Fallback hero messages (loaded from JSON, bucket + day/night aware) -----
@@ -712,8 +711,11 @@ export default function Feather() {
     const color = phase === "loading" || showCities ? "#ffffff" : bg;
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", color);
-    // Fill any gap between the app div and screen edge (home indicator area)
-    document.body.style.backgroundColor = color;
+    // Fill the PWA gap below the app div with the gradient's darker bottom colour
+    // so the home-indicator strip blends into the screen instead of showing a flat band.
+    document.body.style.backgroundColor = (phase === "loading" || showCities)
+      ? "#ffffff"
+      : darkenHex(bg);
   }, [bg, phase, showCities]);
 
   /* -------------------- RENDER -------------------- */
