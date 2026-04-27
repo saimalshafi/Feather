@@ -91,7 +91,7 @@ Examples (mix of tones — follow these EXACTLY for length and rhythm):
 // ── Validation rules ───────────────────────────────────────────────────────
 const VALID_TIME_CONTEXTS = new Set(["dawn", "morning", "day", "evening", "dusk", "night", "late_night"]);
 const VALID_TEMP_TRENDS   = new Set(["warming", "cooling", "stable"]);
-const RATE_LIMIT = 20;
+const RATE_LIMIT = 100;
 
 // Words that the OPENER must not be (first token, lowercased, stripped of punctuation).
 const BANNED_OPENERS = new Set([
