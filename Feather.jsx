@@ -1171,6 +1171,7 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const searchAreaRef = useRef(null);
 
   // ---- Swipe-to-delete state ----
@@ -1236,6 +1237,24 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
     return () => {
       document.removeEventListener("mousedown", handler);
       document.removeEventListener("touchstart", handler);
+    };
+  }, []);
+
+  // Lift search bar above the keyboard on iOS PWA using visualViewport API.
+  // On desktop/browser the viewport resizes with the keyboard so offset stays 0.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      // Offset = how many px the keyboard is covering from the bottom
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardOffset(offset);
+    };
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
     };
   }, []);
 
@@ -1375,7 +1394,12 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
         {/* Search bar + suggestions */}
         {/* zIndex: 20 ensures the dropdown floats above city cards (backdrop-filter on each card
             creates a new stacking context that would otherwise paint over the dropdown) */}
-        <div ref={searchAreaRef} style={{ padding: "10px 16px", paddingBottom: "var(--bottom-gap)", background: "#ffffff", position: "relative", zIndex: 20 }}>
+        <div ref={searchAreaRef} style={{
+          padding: "10px 16px", paddingBottom: "var(--bottom-gap)",
+          background: "#ffffff", position: "relative", zIndex: 20,
+          transform: `translateY(-${keyboardOffset}px)`,
+          transition: "transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        }}>
 
           {/* Suggestions dropdown */}
           {(suggestions.length > 0 || suggestionsLoading) && (
