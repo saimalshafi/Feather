@@ -132,7 +132,7 @@ function themeFor(isDay) {
   };
   return {
     fg:          "rgba(255,255,255,0.92)",
-    fgMuted:     "rgba(255,255,255,0.60)",
+    fgMuted:     "rgba(255,255,255,0.65)",
     fgFaint:     "rgba(255,255,255,0.22)",
     glassBg:     "rgba(255,255,255,0.10)",
     glassBorder: "rgba(255,255,255,0.18)",
@@ -161,6 +161,14 @@ function aqiLabel(v) {
   if (v <= 100) return "Very Poor";
   return "Unhealthy";
 }
+function humidityLabel(v) {
+  if (v == null) return "";
+  if (v < 40) return "Comfortable";
+  if (v < 60) return "Moderate";
+  if (v < 75) return "Sticky";
+  return "Oppressive";
+}
+
 function feelsLikeDescriptor(temp, feels, wind) {
   const d = feels - temp;
   if (d <= -3) return wind > 15 ? "Feels colder due to wind" : "Feels colder";
@@ -180,10 +188,14 @@ function heroFontSize(text) {
 
   const CHAR_RATIO = 0.56;   // Impact em-width per character
   const LINE_H    = 0.98;    // CSS lineHeight value
-  const OVERHEAD  = 321;     // px consumed above/below the hero flex container
 
-  const availW = (typeof window !== "undefined" ? window.innerWidth  : 393) - 40;
-  const availH = (typeof window !== "undefined" ? window.innerHeight : 852) - OVERHEAD;
+  // Cap availW at app max-width so desktop browsers don't over-estimate available space.
+  // OVERHEAD: safe-area-top (~59px) only exists on mobile; subtract it on desktop.
+  const APP_MAX_W = 480;
+  const isDesktop = typeof window !== "undefined" && window.innerWidth > APP_MAX_W;
+  const OVERHEAD  = isDesktop ? 262 : 321;
+  const availW    = Math.min(typeof window !== "undefined" ? window.innerWidth : 393, APP_MAX_W) - 40;
+  const availH    = (typeof window !== "undefined" ? window.innerHeight : 852) - OVERHEAD;
 
   const words = text.split(/\s+/).filter(Boolean);
   const longest = words.reduce((m, w) => Math.max(m, w.length), 1);
@@ -404,6 +416,10 @@ const GlobalStyle = (
       from { opacity: 0; transform: translateY(18px); }
       to   { opacity: 1; transform: translateY(0); }
     }
+    @keyframes featherCitiesOut {
+      from { opacity: 1; transform: translateY(0); }
+      to   { opacity: 0; transform: translateY(18px); }
+    }
     .feather-loading-dots::after {
       content: "...";
       display: inline-block;
@@ -427,6 +443,10 @@ export default function Feather() {
   const [citySearchError, setCitySearchError] = useState("");
   const [manualCity, setManualCity] = useState("");
   const [geoError, setGeoError] = useState("");
+
+  // UI interaction state
+  const [pillActive, setPillActive] = useState(false);
+  const [citiesClosing, setCitiesClosing] = useState(false);
 
   // Gesture state
   const [screen, setScreen] = useState(0);
@@ -659,6 +679,17 @@ export default function Feather() {
     setRefreshing(false);
   };
 
+  // ----- Close cities screen with slide-down exit animation -----
+  const closeCities = useCallback((selectIdx = null) => {
+    if (selectIdx !== null) setActiveIdx(selectIdx);
+    setCitiesClosing(true);
+    setTimeout(() => {
+      setShowCities(false);
+      setCitiesClosing(false);
+      if (selectIdx !== null) setScreen(0);
+    }, 260);
+  }, []);
+
   // ----- Gesture handlers -----
   const onDown = (x, y) => {
     dragging.current = true;
@@ -846,10 +877,11 @@ export default function Feather() {
           setCitySearch={(v) => { setCitySearch(v); setCitySearchError(""); }}
           citySearching={citySearching}
           citySearchError={citySearchError}
-          onSelectCity={(i) => { setActiveIdx(i); setScreen(0); setShowCities(false); }}
+          onSelectCity={(i) => closeCities(i)}
           onSearch={addCity}
           onDeleteCity={deleteCity}
-          onClose={() => setShowCities(false)}
+          onClose={() => closeCities()}
+          closing={citiesClosing}
         />
       </>
     );
@@ -881,6 +913,12 @@ export default function Feather() {
       return 0;
     }
   })();
+
+  // Normalised position: 0 = fully on main screen, 1 = fully on details
+  // Used for smooth pill-temp fade while dragging.
+  const vw = viewportWidth.current || 400;
+  const screenPos = Math.max(0, Math.min(1, (screen * vw - drag) / vw));
+  const pillTempOpacity = Math.max(0, Math.min(1, (screenPos - 0.3) / 0.3));
 
   const pullProgress = Math.min(pullY / PULL_THRESHOLD, 1);
 
@@ -937,8 +975,18 @@ export default function Feather() {
 
             {/* Hero text — starts from the top after the temp, flows downward */}
             <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "0", width: "100%", overflow: "hidden" }}>
-              {phase === "ai_loading" ? (
-                <div style={{ fontFamily: IMPACT_STACK, fontSize: "88px", textAlign: "center", lineHeight: 1, animation: "featherPulse 1.2s ease-in-out infinite" }}>...</div>
+              {refreshing && !heroVisible ? (
+                // Skeleton loading lines while AI generates a new quip
+                <div style={{ width: "100%", paddingTop: "6px" }}>
+                  {[82, 68, 54].map((w, i) => (
+                    <div key={i} style={{
+                      height: "46px", borderRadius: "8px", marginBottom: "16px",
+                      background: isDay ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.12)",
+                      animation: `featherPulse 1.4s ease-in-out ${i * 0.15}s infinite`,
+                      width: `${w}%`,
+                    }} />
+                  ))}
+                </div>
               ) : (
                 <div style={{
                   fontFamily: IMPACT_STACK, fontSize: heroFontSize(hero), lineHeight: 0.98,
@@ -962,30 +1010,38 @@ export default function Feather() {
           }}>
             <div style={sectionHeaderStyle(theme)}>Hourly Forecast</div>
 
-            <div
-              className="feather-noscroll"
-              style={{ display: "flex", gap: "10px", overflowX: "auto", padding: "4px 4px 14px", scrollSnapType: "x proximity", touchAction: "pan-x" }}
-              onTouchStart={e => e.stopPropagation()}
-              onTouchMove={e => e.stopPropagation()}
-              onTouchEnd={e => e.stopPropagation()}
-            >
-              {weather && weather.hourly?.time?.slice(nowHourIdx, nowHourIdx + 24).map((t, i) => {
-                const idx = nowHourIdx + i;
-                // Parse hour directly from the Open-Meteo ISO string ("2024-04-26T14:00")
-                // so the label reflects the CITY's local time, not the device's timezone.
-                const hr = localHourFromISO(t);
-                const label = i === 0 ? "Now" : `${hr === 0 ? 12 : hr > 12 ? hr - 12 : hr}${hr >= 12 ? "PM" : "AM"}`;
-                return (
-                  <div key={t} style={{ minWidth: "60px", padding: "10px 6px", borderRadius: "14px", background: cardTint, display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", scrollSnapAlign: "start" }}>
-                    <div style={{ fontFamily: SFPRO_STACK, fontSize: "11px", fontWeight: i === 0 ? 600 : 500, color: i === 0 ? theme.fg : theme.fgMuted }}>{label}</div>
-                    <div style={{ fontSize: "20px" }}>{weatherEmoji(weather.hourly.weathercode[idx], weather.hourly.is_day?.[idx] === 1)}</div>
-                    <div style={{ fontFamily: IMPACT_STACK, fontSize: "20px" }}>{Math.round(weather.hourly.temperature_2m[idx])}°</div>
-                  </div>
-                );
-              })}
+            <div style={{ position: "relative" }}>
+              <div
+                className="feather-noscroll"
+                style={{ display: "flex", gap: "10px", overflowX: "auto", padding: "4px 4px 14px", scrollSnapType: "x proximity", touchAction: "pan-x" }}
+                onTouchStart={e => e.stopPropagation()}
+                onTouchMove={e => e.stopPropagation()}
+                onTouchEnd={e => e.stopPropagation()}
+              >
+                {weather && weather.hourly?.time?.slice(nowHourIdx, nowHourIdx + 24).map((t, i) => {
+                  const idx = nowHourIdx + i;
+                  // Parse hour directly from the Open-Meteo ISO string ("2024-04-26T14:00")
+                  // so the label reflects the CITY's local time, not the device's timezone.
+                  const hr = localHourFromISO(t);
+                  const label = i === 0 ? "Now" : `${hr === 0 ? 12 : hr > 12 ? hr - 12 : hr}${hr >= 12 ? "PM" : "AM"}`;
+                  return (
+                    <div key={t} style={{ minWidth: "60px", padding: "10px 6px", borderRadius: "14px", background: cardTint, display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", scrollSnapAlign: "start" }}>
+                      <div style={{ fontFamily: SFPRO_STACK, fontSize: "11px", fontWeight: i === 0 ? 600 : 500, color: i === 0 ? theme.fg : theme.fgMuted }}>{label}</div>
+                      <div style={{ fontSize: "20px" }}>{weatherEmoji(weather.hourly.weathercode[idx], weather.hourly.is_day?.[idx] === 1)}</div>
+                      <div style={{ fontFamily: IMPACT_STACK, fontSize: "20px" }}>{Math.round(weather.hourly.temperature_2m[idx])}°</div>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Right-edge fade: hints that the strip is scrollable */}
+              <div style={{
+                position: "absolute", right: 0, top: "4px", bottom: "14px",
+                width: "48px", pointerEvents: "none",
+                background: `linear-gradient(to right, transparent, ${bg})`,
+              }} />
             </div>
 
-            <div style={{ ...sectionHeaderStyle(theme), marginTop: "20px" }}>10-Day Forecast</div>
+            <div style={{ ...sectionHeaderStyle(theme), marginTop: "28px" }}>10-Day Forecast</div>
 
             <div style={{ borderRadius: "16px", background: cardTint, padding: "4px 16px" }}>
               {weather && weather.daily?.time?.map((d, i) => {
@@ -1007,10 +1063,10 @@ export default function Feather() {
               })}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "20px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "28px" }}>
               <Widget label="Feels Like" value={feels != null ? `${feels}°` : "—"} sub={feels != null ? feelsLikeDescriptor(temp, feels, windspd) : ""} tint={cardTint} theme={theme} />
               <Widget label="UV Index" value={uv != null ? `${Math.round(uv)}` : "—"} sub={uvLabel(uv)} tint={cardTint} theme={theme} />
-              <Widget label="Humidity" value={humidity != null ? `${humidity}%` : "—"} sub="Dew point is close" tint={cardTint} theme={theme} />
+              <Widget label="Humidity" value={humidity != null ? `${humidity}%` : "—"} sub={humidityLabel(humidity)} tint={cardTint} theme={theme} />
               <Widget label="Air Quality" value={aqi != null ? `${Math.round(aqi)}` : "—"} sub={aqiLabel(aqi)} tint={cardTint} theme={theme} />
             </div>
           </div>
@@ -1026,6 +1082,9 @@ export default function Feather() {
         }}>
           <div
             onClick={() => setShowCities(true)}
+            onPointerDown={() => setPillActive(true)}
+            onPointerUp={() => setPillActive(false)}
+            onPointerLeave={() => setPillActive(false)}
             style={{
               fontFamily: SFPRO_STACK, fontSize: "14px", fontWeight: 500,
               padding: "8px 18px", borderRadius: "999px",
@@ -1036,14 +1095,17 @@ export default function Feather() {
               boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
               display: "inline-flex", alignItems: "center", gap: "10px",
               whiteSpace: "nowrap", cursor: "pointer",
-              transition: "background 800ms ease, border-color 800ms ease, color 800ms ease",
+              transform: pillActive ? "scale(0.93)" : "scale(1)",
+              transition: pillActive
+                ? "transform 80ms ease, background 800ms ease, border-color 800ms ease, color 800ms ease"
+                : "transform 200ms ease, background 800ms ease, border-color 800ms ease, color 800ms ease",
             }}>
             <span>{cityName || "—"}</span>
-            {screen === 1 && temp != null && !refreshing && (
-              <>
+            {temp != null && !refreshing && pillTempOpacity > 0.01 && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "10px", opacity: pillTempOpacity, transition: dragging.current ? "none" : "opacity 200ms ease" }}>
                 <span style={{ color: theme.fgFaint, fontFamily: SFPRO_STACK, fontWeight: 300 }}>|</span>
                 <span style={{ fontFamily: IMPACT_STACK, fontSize: "14px", letterSpacing: "0.3px", lineHeight: 1 }}>{temp}°</span>
-              </>
+              </span>
             )}
           </div>
         </div>
@@ -1105,7 +1167,7 @@ function Widget({ label, value, sub, tint, theme }) {
 /* ------------------------------------------------------------------ *
  * Cities list screen
  * ------------------------------------------------------------------ */
-function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearching, citySearchError, onSelectCity, onSearch, onDeleteCity }) {
+function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearching, citySearchError, onSelectCity, onSearch, onDeleteCity, closing }) {
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const searchAreaRef = useRef(null);
@@ -1214,7 +1276,9 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
       display: "flex", justifyContent: "center",
       fontFamily: SFPRO_STACK,
       userSelect: "none", WebkitUserSelect: "none",
-      animation: "featherCitiesIn 280ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both",
+      animation: closing
+        ? "featherCitiesOut 260ms ease-in both"
+        : "featherCitiesIn 280ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both",
     }}>
       <div style={{ width: "100%", maxWidth: "480px", display: "flex", flexDirection: "column", height: "100%" }}>
 
