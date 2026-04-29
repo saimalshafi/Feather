@@ -396,7 +396,8 @@ const GlobalStyle = (
   <style>{`
     *, *::before, *::after { box-sizing: border-box; }
     html, body, #root { margin: 0; padding: 0; height: 100%; }
-    body { overscroll-behavior: none; }
+    html { color-scheme: light; background-color: #ffffff; }
+    body { overscroll-behavior: none; background-color: #ffffff; }
     :root { --bottom-gap: 20px; --content-bottom: 80px; }
     .feather-noscroll::-webkit-scrollbar { display: none; }
     .feather-noscroll { scrollbar-width: none; -ms-overflow-style: none; }
@@ -774,28 +775,37 @@ export default function Feather() {
   const bg = bgFor(code, temp, isDay);
   const cardTint = widgetTint(bg, isDay);
 
-  // Keep <meta name="theme-color"> in sync with the current background.
-  // Also sync <meta name="color-scheme"> so iOS picks the right home-indicator colour
-  // (light scheme → dark indicator; dark scheme → white indicator).
+  // Keep theme-color, body/html background, and color-scheme in sync.
+  // iOS derives the home-indicator colour from:
+  //   1. The CSS `color-scheme` property on <html>  ← most reliable
+  //   2. The background-color of <html>/<body>       ← fills safe-area zone
+  //   3. <meta name="color-scheme">                  ← browser-chrome hint
   useEffect(() => {
-    const isLight = phase === "loading" || showCities || isDay;
-    const color   = isLight ? "#ffffff" : bg;
+    const isLight   = phase === "loading" || showCities || isDay;
+    const bgBottom  = isLight ? "#ffffff" : darkenHex(bg);
+    const scheme    = isLight ? "light" : "dark";
 
+    // theme-color (Android chrome bar / PWA splash)
     const themeMeta = document.querySelector('meta[name="theme-color"]');
-    if (themeMeta) themeMeta.setAttribute("content", color);
+    if (themeMeta) themeMeta.setAttribute("content", isLight ? "#ffffff" : bg);
 
-    // Fill the PWA gap below the app div so the home-indicator strip blends in.
-    document.body.style.backgroundColor = isLight ? "#ffffff" : darkenHex(bg);
+    // Fill the gap below 100dvh so the safe-area strip matches the app background
+    document.body.style.backgroundColor = bgBottom;
+    // Setting it on <html> is what iOS actually samples for the home indicator
+    document.documentElement.style.backgroundColor = bgBottom;
 
-    // color-scheme tells iOS which indicator style to render:
-    // "light" → dark/black indicator (visible on white), "dark" → white indicator (visible on dark)
+    // CSS color-scheme property on <html> → this is what iOS uses to decide
+    // whether to render a dark or light home indicator pill
+    document.documentElement.style.colorScheme = scheme;
+
+    // meta tag version (belt-and-suspenders)
     let schemeMeta = document.querySelector('meta[name="color-scheme"]');
     if (!schemeMeta) {
       schemeMeta = document.createElement('meta');
       schemeMeta.setAttribute('name', 'color-scheme');
       document.head.appendChild(schemeMeta);
     }
-    schemeMeta.setAttribute('content', isLight ? 'light' : 'dark');
+    schemeMeta.setAttribute('content', scheme);
   }, [bg, phase, showCities, isDay]);
 
   /* -------------------- RENDER -------------------- */
