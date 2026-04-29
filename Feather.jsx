@@ -1490,7 +1490,7 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
               </div>
               {/* GitHub link */}
               <a
-                href="https://github.com/saimalshafi"
+                href="https://github.com/saimalshafi/Feather"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={e => e.stopPropagation()}
