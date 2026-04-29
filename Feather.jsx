@@ -1170,6 +1170,7 @@ function Widget({ label, value, sub, tint, theme }) {
 function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearching, citySearchError, onSelectCity, onSearch, onDeleteCity, closing }) {
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const searchAreaRef = useRef(null);
 
   // ---- Swipe-to-delete state ----
@@ -1284,7 +1285,10 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
 
         {/* Header */}
         <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 20px) 20px 24px", display: "flex", justifyContent: "flex-start", alignItems: "flex-end" }}>
-          <div style={{ fontFamily: IMPACT_STACK, fontSize: "34px", letterSpacing: "-0.5px", color: "#111" }}>F*eather</div>
+          <div
+            onClick={() => setShowAbout(true)}
+            style={{ fontFamily: IMPACT_STACK, fontSize: "34px", letterSpacing: "-0.5px", color: "#111", cursor: "pointer" }}
+          >F*eather</div>
         </div>
 
         {/* City cards */}
@@ -1433,6 +1437,83 @@ function CitiesScreen({ cities, activeIdx, citySearch, setCitySearch, citySearch
           </div>
         </div>
       </div>
+
+      {/* ---- About modal ---- */}
+      {showAbout && (
+        <div
+          onClick={() => setShowAbout(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 100,
+            background: "rgba(0,0,0,0.28)",
+            backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "24px",
+            animation: "featherFadeIn 200ms ease both",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: "100%", maxWidth: "360px",
+              background: "rgba(255,255,255,0.88)",
+              backdropFilter: "blur(40px) saturate(200%)",
+              WebkitBackdropFilter: "blur(40px) saturate(200%)",
+              border: "1px solid rgba(255,255,255,0.7)",
+              borderRadius: "24px",
+              padding: "32px 28px 28px",
+              boxShadow: "0 24px 64px rgba(0,0,0,0.16), 0 4px 16px rgba(0,0,0,0.08)",
+              display: "flex", flexDirection: "column", gap: "0",
+            }}
+          >
+            {/* Title */}
+            <div style={{ fontFamily: IMPACT_STACK, fontSize: "48px", letterSpacing: "-1px", color: "#111", lineHeight: 1, marginBottom: "14px" }}>
+              F*eather
+            </div>
+
+            {/* Subtitle */}
+            <div style={{ fontFamily: SFPRO_STACK, fontSize: "15px", color: "rgba(0,0,0,0.60)", lineHeight: 1.55, marginBottom: "28px" }}>
+              A brutally honest weather app for the days when you just need the f*cking weather.
+            </div>
+
+            {/* Divider */}
+            <div style={{ height: "1px", background: "rgba(0,0,0,0.08)", marginBottom: "20px" }} />
+
+            {/* Made by */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontFamily: SFPRO_STACK, fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.7px", color: "rgba(0,0,0,0.38)", marginBottom: "3px" }}>
+                  Made by
+                </div>
+                <div style={{ fontFamily: SFPRO_STACK, fontSize: "16px", fontWeight: 600, color: "#111", letterSpacing: "-0.2px" }}>
+                  Saim Alshafi
+                </div>
+              </div>
+              {/* GitHub link */}
+              <a
+                href="https://github.com/saimalshafi"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: "44px", height: "44px", borderRadius: "12px",
+                  background: "rgba(0,0,0,0.06)",
+                  border: "1px solid rgba(0,0,0,0.08)",
+                  color: "#111", textDecoration: "none",
+                  transition: "background 150ms ease",
+                  flexShrink: 0,
+                }}
+                onPointerEnter={e => e.currentTarget.style.background = "rgba(0,0,0,0.11)"}
+                onPointerLeave={e => e.currentTarget.style.background = "rgba(0,0,0,0.06)"}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-label="GitHub">
+                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
