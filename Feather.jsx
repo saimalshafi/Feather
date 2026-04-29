@@ -775,18 +775,28 @@ export default function Feather() {
   const cardTint = widgetTint(bg, isDay);
 
   // Keep <meta name="theme-color"> in sync with the current background.
-  // This colours the browser chrome on Android and acts as the PWA splash tint.
-  // The splash override (white) is handled separately below.
+  // Also sync <meta name="color-scheme"> so iOS picks the right home-indicator colour
+  // (light scheme → dark indicator; dark scheme → white indicator).
   useEffect(() => {
-    const color = phase === "loading" || showCities ? "#ffffff" : bg;
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", color);
-    // Fill the PWA gap below the app div with the gradient's darker bottom colour
-    // so the home-indicator strip blends into the screen instead of showing a flat band.
-    document.body.style.backgroundColor = (phase === "loading" || showCities)
-      ? "#ffffff"
-      : darkenHex(bg);
-  }, [bg, phase, showCities]);
+    const isLight = phase === "loading" || showCities || isDay;
+    const color   = isLight ? "#ffffff" : bg;
+
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeMeta) themeMeta.setAttribute("content", color);
+
+    // Fill the PWA gap below the app div so the home-indicator strip blends in.
+    document.body.style.backgroundColor = isLight ? "#ffffff" : darkenHex(bg);
+
+    // color-scheme tells iOS which indicator style to render:
+    // "light" → dark/black indicator (visible on white), "dark" → white indicator (visible on dark)
+    let schemeMeta = document.querySelector('meta[name="color-scheme"]');
+    if (!schemeMeta) {
+      schemeMeta = document.createElement('meta');
+      schemeMeta.setAttribute('name', 'color-scheme');
+      document.head.appendChild(schemeMeta);
+    }
+    schemeMeta.setAttribute('content', isLight ? 'light' : 'dark');
+  }, [bg, phase, showCities, isDay]);
 
   /* -------------------- RENDER -------------------- */
 
@@ -977,7 +987,7 @@ export default function Feather() {
             <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "0", width: "100%", overflow: "hidden" }}>
               {refreshing && !heroVisible ? (
                 // Skeleton loading lines while AI generates a new quip
-                <div style={{ width: "100%", paddingTop: "6px" }}>
+                <div style={{ width: "100%", paddingTop: "6px", display: "flex", flexDirection: "column", alignItems: "center" }}>
                   {[82, 68, 54].map((w, i) => (
                     <div key={i} style={{
                       height: "46px", borderRadius: "8px", marginBottom: "16px",
