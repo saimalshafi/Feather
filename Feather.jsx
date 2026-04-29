@@ -781,24 +781,27 @@ export default function Feather() {
   //   2. The background-color of <html>/<body>       ← fills safe-area zone
   //   3. <meta name="color-scheme">                  ← browser-chrome hint
   useEffect(() => {
-    const isLight   = phase === "loading" || showCities || isDay;
-    const bgBottom  = isLight ? "#ffffff" : darkenHex(bg);
-    const scheme    = isLight ? "light" : "dark";
+    // Two independent questions:
+    // 1. What colour fills the safe-area strip below the app? → always the weather bg,
+    //    white only during the splash / cities screen.
+    // 2. Which home-indicator style should iOS render? → dark pill on day/light screens,
+    //    white pill on night/dark screens.
+    const isSplashOrCities = phase === "loading" || showCities;
+    const bgBottom = isSplashOrCities ? "#ffffff" : darkenHex(bg);
+    const scheme   = (isSplashOrCities || isDay) ? "light" : "dark";
 
-    // theme-color (Android chrome bar / PWA splash)
+    // theme-color (Android chrome bar / PWA splash tint)
     const themeMeta = document.querySelector('meta[name="theme-color"]');
-    if (themeMeta) themeMeta.setAttribute("content", isLight ? "#ffffff" : bg);
+    if (themeMeta) themeMeta.setAttribute("content", isSplashOrCities ? "#ffffff" : bg);
 
-    // Fill the gap below 100dvh so the safe-area strip matches the app background
+    // Fill the safe-area gap below 100dvh with the matching weather colour
     document.body.style.backgroundColor = bgBottom;
-    // Setting it on <html> is what iOS actually samples for the home indicator
     document.documentElement.style.backgroundColor = bgBottom;
 
-    // CSS color-scheme property on <html> → this is what iOS uses to decide
-    // whether to render a dark or light home indicator pill
+    // CSS color-scheme on <html> — what iOS actually reads for home-indicator colour
     document.documentElement.style.colorScheme = scheme;
 
-    // meta tag version (belt-and-suspenders)
+    // meta tag (belt-and-suspenders for other browsers)
     let schemeMeta = document.querySelector('meta[name="color-scheme"]');
     if (!schemeMeta) {
       schemeMeta = document.createElement('meta');
