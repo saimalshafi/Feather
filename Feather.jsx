@@ -864,6 +864,7 @@ export default function Feather() {
     return (
       <div style={outerStyle}>
         {GlobalStyle}
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "env(safe-area-inset-bottom, 0px)", background: darkenHex(bg), pointerEvents: "none" }} />
         <div style={rootStyle}>
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 32px", gap: "20px" }}>
             <div style={{ fontFamily: IMPACT_STACK, fontSize: "48px" }}>F*eather</div>
@@ -948,6 +949,21 @@ export default function Feather() {
   return (
     <div style={outerStyle}>
       {GlobalStyle}
+
+      {/* ---- Home-indicator safe-area fill ----
+          iOS samples the rendered pixels behind the pill; CSS gradients on a
+          fixed element are unreliable for that sampling in PWA standalone mode.
+          This solid strip sits at the very bottom of the full-screen div,
+          painted over the gradient, giving iOS an unambiguous colour to read.
+          Its colour matches the gradient's bottom colour so it's visually seamless. */}
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0,
+        height: "env(safe-area-inset-bottom, 0px)",
+        background: darkenHex(bg),
+        pointerEvents: "none",
+        transition: "background 800ms ease",
+      }} />
+
       <div style={rootStyle} {...touchProps} ref={containerRef}>
 
         {/* Pull-to-refresh spinner */}
