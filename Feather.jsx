@@ -814,7 +814,7 @@ export default function Feather() {
       el.removeEventListener("wheel", onWheel);
       clearTimeout(wheelTimer.current);
     };
-  }, []); // intentionally empty — uses screenRef
+  }, [phase]); // re-runs when phase→"ready" so containerRef is populated
 
   // ----- Derived values -----
   const activeCity = cities[activeIdx] ?? null;
