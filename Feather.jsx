@@ -761,61 +761,6 @@ export default function Feather() {
     onMouseLeave: onUp,
   };
 
-  // ----- Trackpad / horizontal wheel swipe -----
-  const wheelAccum = useRef(0);
-  const wheelTimer = useRef(null);
-  const wheelLocked = useRef(false);
-  const screenRef = useRef(screen);
-  useEffect(() => { screenRef.current = screen; }, [screen]);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const onWheel = (e) => {
-      // Ignore scroll events that are more vertical than horizontal
-      if (Math.abs(e.deltaX) < Math.abs(e.deltaY) * 0.6) return;
-      e.preventDefault();
-      if (wheelLocked.current) return;
-
-      // Cap per-event contribution to avoid momentum overshooting
-      const step = Math.sign(e.deltaX) * Math.min(Math.abs(e.deltaX), 24);
-      wheelAccum.current += step;
-
-      // Clamp visual drag and rubber-band at edges
-      const cur = screenRef.current;
-      let vis = wheelAccum.current;
-      if (cur === 0 && vis > 0)  vis *= 0.15;  // already at left edge
-      if (cur === 1 && vis < 0)  vis *= 0.15;  // already at right edge
-      const vw = el.offsetWidth || window.innerWidth;
-      vis = Math.max(-vw, Math.min(vw, vis));
-      setDrag(vis);
-
-      // Debounce: wait until wheel events stop (~150 ms), then commit
-      clearTimeout(wheelTimer.current);
-      wheelTimer.current = setTimeout(() => {
-        const THRESHOLD = 50;
-        if (cur === 0 && wheelAccum.current < -THRESHOLD) {
-          setScreen(1);
-          wheelLocked.current = true;
-          setTimeout(() => { wheelLocked.current = false; }, 500);
-        } else if (cur === 1 && wheelAccum.current > THRESHOLD) {
-          setScreen(0);
-          wheelLocked.current = true;
-          setTimeout(() => { wheelLocked.current = false; }, 500);
-        }
-        setDrag(0);
-        wheelAccum.current = 0;
-      }, 120);
-    };
-
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => {
-      el.removeEventListener("wheel", onWheel);
-      clearTimeout(wheelTimer.current);
-    };
-  }, [phase]); // re-runs when phase→"ready" so containerRef is populated
-
   // ----- Derived values -----
   const activeCity = cities[activeIdx] ?? null;
   const weather = activeCity?.weather ?? null;
