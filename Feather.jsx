@@ -398,12 +398,10 @@ const GlobalStyle = (
     html, body, #root { margin: 0; padding: 0; height: 100%; }
     html { color-scheme: light; background-color: #ffffff; }
     body { overscroll-behavior: none; background-color: #ffffff; }
-    :root { --bottom-gap: 20px; --content-bottom: 80px; }
-    @media (display-mode: standalone) {
-      :root {
-        --bottom-gap: calc(env(safe-area-inset-bottom, 0px) + 10px);
-        --content-bottom: calc(env(safe-area-inset-bottom, 0px) + 65px);
-      }
+    :root {
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --bottom-gap: max(20px, calc(var(--safe-bottom) + 10px));
+      --content-bottom: max(80px, calc(var(--safe-bottom) + 65px));
     }
     .feather-noscroll::-webkit-scrollbar { display: none; }
     .feather-noscroll { scrollbar-width: none; -ms-overflow-style: none; }
