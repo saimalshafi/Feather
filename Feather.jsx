@@ -1090,7 +1090,7 @@ export default function Feather() {
                   fontFamily: IMPACT_STACK, fontSize: heroFontSize(hero), lineHeight: 0.98,
                   textAlign: "center", letterSpacing: "-1px",
                   opacity: heroVisible ? 1 : 0, transform: heroVisible ? "scale(1)" : "scale(0.97)",
-                  transition: "opacity 500ms ease, transform 500ms ease, font-size 300ms ease",
+                  transition: "opacity 500ms ease, transform 500ms ease",
                   maxWidth: "640px",
                 }}>
                   {hero}
